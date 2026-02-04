@@ -1,21 +1,34 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
+use chrono::Utc;
 use colored::Colorize;
+use std::env;
 
-use crate::config::{ensure_default_config, resolve_rituals_dir, validate_rituals_dir};
+use crate::config::{
+    delete_session_metadata, ensure_default_config, load_session_metadata, resolve_rituals_dir,
+    save_session_metadata, validate_rituals_dir, SessionMetadata,
+};
 use crate::layout::create_temp_layout;
 use crate::zellij::ZellijSession;
 
-pub fn execute(_layout: &str, session_name: &str, no_rituals: bool) -> Result<()> {
-    let session = ZellijSession::new(session_name);
+const SESSION_NAME: &str = "overlord";
+
+pub fn execute() -> Result<()> {
+    let session = ZellijSession::new(SESSION_NAME);
+    let cwd = env::current_dir()?;
 
     // Check if session already exists
     if session.exists()? {
-        println!(
-            "{} Session '{}' already exists. Attaching...",
-            "Info:".cyan().bold(),
-            session_name
-        );
-        return session.attach();
+        if let Some(meta) = load_session_metadata()? {
+            bail!(
+                "既に {:?} で召喚されています。\n`ovld slay` で撃滅してから再召喚してください。",
+                meta.cwd
+            );
+        } else {
+            bail!(
+                "既存セッション '{}' があります。\n`ovld slay` で撃滅してから再召喚してください。",
+                SESSION_NAME
+            );
+        }
     }
 
     // Ensure default config exists (creates ~/.config/ovld/rituals/ if needed)
@@ -25,35 +38,41 @@ pub fn execute(_layout: &str, session_name: &str, no_rituals: bool) -> Result<()
     let rituals_dir = resolve_rituals_dir()?;
 
     // Validate ritual files exist
-    if !no_rituals {
-        validate_rituals_dir(&rituals_dir)?;
-    }
+    validate_rituals_dir(&rituals_dir)?;
+
+    // Save session metadata
+    save_session_metadata(&SessionMetadata {
+        cwd: cwd.clone(),
+        started_at: Utc::now(),
+    })?;
 
     println!(
-        "{} Summoning the army...",
+        "{} {:?} で魔王軍を召喚中...",
         "Overlord:".red().bold(),
+        cwd
+    );
+    println!(
+        "{} 儀式ファイル: {:?}",
+        "Info:".cyan().bold(),
+        rituals_dir
     );
 
-    if !no_rituals {
-        println!(
-            "{} Using rituals from {:?}",
-            "Info:".cyan().bold(),
-            rituals_dir
-        );
-    }
-
-    // Generate layout with absolute paths to ritual files
-    // The temp file is kept alive until this scope ends
-    let (_temp_file, layout_path) = create_temp_layout(&rituals_dir, no_rituals)?;
+    // Generate layout with absolute paths to ritual files and cwd
+    let (_temp_file, layout_path) = create_temp_layout(&rituals_dir, &cwd)?;
 
     // Start the session - this blocks until Zellij exits
-    session.start(layout_path.to_str().unwrap())?;
+    let result = session.start(layout_path.to_str().unwrap());
 
-    // This message shows after user exits Zellij
+    // Clean up session metadata when session ends (regardless of success/failure)
+    let _ = delete_session_metadata();
+
+    // Handle the result
+    result?;
+
     println!(
-        "{} Session '{}' ended.",
+        "{} セッション '{}' が終了しました。",
         "Info:".cyan().bold(),
-        session_name
+        SESSION_NAME
     );
 
     Ok(())

@@ -3,29 +3,20 @@ use std::fs;
 use std::path::PathBuf;
 use tempfile::NamedTempFile;
 
-/// Generate KDL layout with absolute paths to ritual files
-/// If `no_rituals` is true, panes will run bash instead of claude
-pub fn generate_layout(rituals_dir: &PathBuf, no_rituals: bool) -> String {
-    let cmd = if no_rituals { "bash" } else { "claude" };
+/// Generate KDL layout with absolute paths to ritual files and working directory
+pub fn generate_layout(rituals_dir: &PathBuf, cwd: &PathBuf) -> String {
+    let cwd_str = cwd.display();
 
     let pane_config = |name: &str, size: Option<&str>| -> String {
         let size_attr = size.map(|s| format!(" size=\"{}\"", s)).unwrap_or_default();
-        if no_rituals {
-            format!(
-                r#"            pane name="{name}"{size_attr} {{
-                command "{cmd}"
-            }}"#
-            )
-        } else {
-            let ritual_path = rituals_dir.join(format!("{}.md", name));
-            format!(
-                r#"            pane name="{name}"{size_attr} {{
-                command "{cmd}"
+        let ritual_path = rituals_dir.join(format!("{}.md", name));
+        format!(
+            r#"            pane name="{name}"{size_attr} cwd="{cwd_str}" {{
+                command "claude"
                 args ["--system-prompt-file", "{}"]
             }}"#,
-                ritual_path.display()
-            )
-        }
+            ritual_path.display()
+        )
     };
 
     format!(
@@ -71,8 +62,8 @@ pub fn generate_layout(rituals_dir: &PathBuf, no_rituals: bool) -> String {
 
 /// Create a temporary file with the generated layout
 /// Returns the temp file (keeps it alive) and its path
-pub fn create_temp_layout(rituals_dir: &PathBuf, no_rituals: bool) -> Result<(NamedTempFile, PathBuf)> {
-    let content = generate_layout(rituals_dir, no_rituals);
+pub fn create_temp_layout(rituals_dir: &PathBuf, cwd: &PathBuf) -> Result<(NamedTempFile, PathBuf)> {
+    let content = generate_layout(rituals_dir, cwd);
 
     let temp_file = NamedTempFile::with_suffix(".kdl")
         .context("Failed to create temporary layout file")?;
@@ -91,21 +82,14 @@ mod tests {
     use std::path::PathBuf;
 
     #[test]
-    fn test_generate_layout_with_rituals() {
+    fn test_generate_layout_with_cwd() {
         let rituals_dir = PathBuf::from("/home/user/.config/ovld/rituals");
-        let layout = generate_layout(&rituals_dir, false);
+        let cwd = PathBuf::from("/home/user/projects/myproject");
+        let layout = generate_layout(&rituals_dir, &cwd);
 
         assert!(layout.contains("command \"claude\""));
         assert!(layout.contains("--system-prompt-file"));
         assert!(layout.contains("/home/user/.config/ovld/rituals/overlord.md"));
-    }
-
-    #[test]
-    fn test_generate_layout_no_rituals() {
-        let rituals_dir = PathBuf::from("/home/user/.config/ovld/rituals");
-        let layout = generate_layout(&rituals_dir, true);
-
-        assert!(layout.contains("command \"bash\""));
-        assert!(!layout.contains("--system-prompt-file"));
+        assert!(layout.contains("cwd=\"/home/user/projects/myproject\""));
     }
 }

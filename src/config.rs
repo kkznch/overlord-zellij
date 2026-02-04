@@ -1,7 +1,69 @@
 use anyhow::{Context, Result};
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
 use std::path::PathBuf;
+
+/// Session metadata stored in ~/.config/ovld/session.json
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionMetadata {
+    pub cwd: PathBuf,
+    pub started_at: DateTime<Utc>,
+}
+
+/// Path to session metadata file: ~/.config/ovld/session.json
+pub fn session_metadata_path() -> Result<PathBuf> {
+    Ok(config_dir()?.join("session.json"))
+}
+
+/// Save session metadata to file
+pub fn save_session_metadata(metadata: &SessionMetadata) -> Result<()> {
+    let path = session_metadata_path()?;
+
+    // Ensure config directory exists
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create config directory: {:?}", parent))?;
+    }
+
+    let content = serde_json::to_string_pretty(metadata)
+        .context("Failed to serialize session metadata")?;
+
+    fs::write(&path, content)
+        .with_context(|| format!("Failed to write session metadata to {:?}", path))?;
+
+    Ok(())
+}
+
+/// Load session metadata from file (returns None if file doesn't exist)
+pub fn load_session_metadata() -> Result<Option<SessionMetadata>> {
+    let path = session_metadata_path()?;
+
+    if !path.exists() {
+        return Ok(None);
+    }
+
+    let content = fs::read_to_string(&path)
+        .with_context(|| format!("Failed to read session metadata from {:?}", path))?;
+
+    let metadata: SessionMetadata = serde_json::from_str(&content)
+        .with_context(|| format!("Failed to parse session metadata from {:?}", path))?;
+
+    Ok(Some(metadata))
+}
+
+/// Delete session metadata file
+pub fn delete_session_metadata() -> Result<()> {
+    let path = session_metadata_path()?;
+
+    if path.exists() {
+        fs::remove_file(&path)
+            .with_context(|| format!("Failed to delete session metadata at {:?}", path))?;
+    }
+
+    Ok(())
+}
 
 /// Global config directory: ~/.config/ovld/
 pub fn config_dir() -> Result<PathBuf> {

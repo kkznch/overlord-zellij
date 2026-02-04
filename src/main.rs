@@ -12,9 +12,9 @@ use commands::{slay, status, summon};
 
 #[derive(Parser)]
 #[command(name = "ovld")]
-#[command(about = "Overlord CLI - Command your Claude army on Zellij")]
+#[command(about = "Overlord CLI - 魔王軍をZellij上で指揮せよ")]
 #[command(version)]
-#[command(after_help = "The demons await your command...")]
+#[command(after_help = "魔王軍があなたの命令を待っています...")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -22,53 +22,27 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Summon the army - Start Zellij session with army layout
-    Summon {
-        /// Layout file to use (default: army)
-        #[arg(short, long, default_value = "army")]
-        layout: String,
+    /// summon - 魔王軍を召喚（カレントディレクトリで展開）
+    Summon,
 
-        /// Session name
-        #[arg(short, long, default_value = "overlord")]
-        session: String,
-
-        /// Skip ritual injection
-        #[arg(long)]
-        no_rituals: bool,
-    },
-
-    /// Slay the army - Close session and cleanup all processes
+    /// slay - 魔王軍を撃滅（セッション終了）
     Slay {
-        /// Session name to kill
-        #[arg(short, long, default_value = "overlord")]
-        session: String,
-
-        /// Force kill without confirmation
+        /// 確認なしで強制撃滅
         #[arg(short, long)]
         force: bool,
     },
 
-    /// Check army status
-    Status {
-        /// Session name to check
-        #[arg(short, long, default_value = "overlord")]
-        session: String,
-    },
+    /// status - 魔王軍の状態を確認
+    Status,
 }
 
 fn main() {
     let cli = Cli::parse();
 
     let result = match cli.command {
-        Commands::Summon {
-            layout,
-            session,
-            no_rituals,
-        } => summon::execute(&layout, &session, no_rituals),
-
-        Commands::Slay { session, force } => slay::execute(&session, force),
-
-        Commands::Status { session } => status::execute(&session),
+        Commands::Summon => summon::execute(),
+        Commands::Slay { force } => slay::execute(force),
+        Commands::Status => status::execute(),
     };
 
     if let Err(e) = result {

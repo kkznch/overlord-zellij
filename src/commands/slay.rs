@@ -2,22 +2,25 @@ use anyhow::{bail, Result};
 use colored::Colorize;
 use std::io::{self, Write};
 
+use crate::config::delete_session_metadata;
 use crate::zellij::ZellijSession;
 
-pub fn execute(session_name: &str, force: bool) -> Result<()> {
-    let session = ZellijSession::new(session_name);
+const SESSION_NAME: &str = "overlord";
+
+pub fn execute(force: bool) -> Result<()> {
+    let session = ZellijSession::new(SESSION_NAME);
 
     // Check if session exists
     if !session.exists()? {
-        bail!("Session '{}' not found. Nothing to slay.", session_name);
+        bail!("セッション '{}' が見つかりません。撃滅対象なし。", SESSION_NAME);
     }
 
     // Confirm unless force flag is set
     if !force {
         print!(
-            "{} Are you sure you want to slay the army in session '{}'? [y/N] ",
+            "{} セッション '{}' を撃滅しますか？ [y/N] ",
             "Warning:".yellow().bold(),
-            session_name
+            SESSION_NAME
         );
         io::stdout().flush()?;
 
@@ -25,27 +28,33 @@ pub fn execute(session_name: &str, force: bool) -> Result<()> {
         io::stdin().read_line(&mut input)?;
 
         if !input.trim().eq_ignore_ascii_case("y") {
-            println!("{} Aborted. The army lives another day.", "Info:".cyan().bold());
+            println!(
+                "{} 中止しました。魔王軍は健在です。",
+                "Info:".cyan().bold()
+            );
             return Ok(());
         }
     }
 
     println!(
-        "{} Slaying the army in session '{}'...",
+        "{} セッション '{}' を撃滅中...",
         "Overlord:".red().bold(),
-        session_name
+        SESSION_NAME
     );
 
     // Kill the session
     session.kill()?;
 
     // Delete session data for complete cleanup
-    let _ = session.delete(true); // Ignore errors on delete
+    let _ = session.delete(true);
+
+    // Delete session metadata
+    let _ = delete_session_metadata();
 
     println!(
-        "{} The army has been slain. Session '{}' destroyed.",
+        "{} 魔王軍は撃滅されました。セッション '{}' は消滅しました。",
         "Success:".green().bold(),
-        session_name
+        SESSION_NAME
     );
 
     Ok(())

@@ -2,40 +2,65 @@ use anyhow::Result;
 use colored::Colorize;
 
 use crate::army::Role;
+use crate::config::load_session_metadata;
 use crate::zellij::ZellijSession;
 
-pub fn execute(session_name: &str) -> Result<()> {
-    let session = ZellijSession::new(session_name);
+const SESSION_NAME: &str = "overlord";
 
-    println!("{}", "=== Overlord Army Status ===".red().bold());
+pub fn execute() -> Result<()> {
+    let session = ZellijSession::new(SESSION_NAME);
+
+    println!("{}", "=== 魔王軍ステータス ===".red().bold());
     println!();
 
     // Check if session exists
     if session.exists()? {
         println!(
             "{} {}",
-            "Session:".cyan().bold(),
-            session_name.green()
+            "セッション:".cyan().bold(),
+            SESSION_NAME.green()
         );
-        println!("{} {}", "Status:".cyan().bold(), "ACTIVE".green().bold());
+        println!(
+            "{} {}",
+            "状態:".cyan().bold(),
+            "展開中".green().bold()
+        );
+
+        // Show session metadata if available
+        if let Some(meta) = load_session_metadata()? {
+            println!(
+                "{} {:?}",
+                "作業場所:".cyan().bold(),
+                meta.cwd
+            );
+            println!(
+                "{} {}",
+                "召喚時刻:".cyan().bold(),
+                meta.started_at.format("%Y-%m-%d %H:%M:%S UTC")
+            );
+        }
     } else {
         println!(
             "{} {}",
-            "Session:".cyan().bold(),
-            session_name.yellow()
+            "セッション:".cyan().bold(),
+            SESSION_NAME.yellow()
         );
-        println!("{} {}", "Status:".cyan().bold(), "NOT FOUND".red().bold());
+        println!(
+            "{} {}",
+            "状態:".cyan().bold(),
+            "未召喚".red().bold()
+        );
         println!();
         println!(
-            "{} Use '{}' to summon the army.",
-            "Hint:".yellow(),
+            "{} '{}' で魔王軍を召喚してください。",
+            "ヒント:".yellow(),
             "ovld summon".cyan()
         );
         return Ok(());
     }
 
     println!();
-    println!("{}", "=== Army Hierarchy ===".red().bold());
+    println!("{}", "=== 魔王軍階級 ===".red().bold());
     println!();
 
     for role in Role::all() {
@@ -52,8 +77,8 @@ pub fn execute(session_name: &str) -> Result<()> {
 
     println!();
     println!(
-        "{} Use '{}' to terminate the session.",
-        "Hint:".yellow(),
+        "{} '{}' でセッションを撃滅できます。",
+        "ヒント:".yellow(),
         "ovld slay".cyan()
     );
 
