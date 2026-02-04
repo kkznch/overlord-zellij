@@ -1,31 +1,39 @@
 layout {
-    // Main tab for the Overlord (魔王)
-    tab name="overlord" focus=true {
-        pane name="overlord" {
+    // Command tab: Overlord + Strategist (司令部)
+    tab name="command" {
+        pane split_direction="vertical" {
+            // 魔王 (Overlord) - 要件定義・最終検収
+            pane name="overlord" size="30%" {
+                command "bash"
+            }
+            // 闇の軍師 (Strategist) - タスク分解・指揮
+            pane name="strategist" size="70%" {
+                command "bash"
+            }
+        }
+    }
+
+    // Battlefield tab: Inferno (主戦場)
+    tab name="battlefield" focus=true {
+        // 業火の将 (Inferno) - Logic & Core
+        pane name="inferno" {
             command "bash"
         }
     }
 
-    // Tab for the Dark Strategist (軍師)
-    tab name="strategist" {
-        pane name="strategist" {
-            command "bash"
-        }
-    }
-
-    // Tab for the Legions (兵団) - split into 3 panes
-    tab name="legions" {
+    // Support tab: Glacier + Shadow + Storm (補助)
+    tab name="support" {
         pane split_direction="horizontal" {
-            // 第一兵団（剛腕）- Implementation
-            pane name="legion-impl" size="33%" {
+            // 氷結の将 (Glacier) - Arch & Refactor
+            pane name="glacier" size="33%" {
                 command "bash"
             }
-            // 第二兵団（処刑）- Debug/Review
-            pane name="legion-debug" size="33%" {
+            // 常闇の将 (Shadow) - Audit & Security
+            pane name="shadow" size="33%" {
                 command "bash"
             }
-            // 第三兵団（記録）- Documentation
-            pane name="legion-docs" size="34%" {
+            // 疾風の将 (Storm) - UI & Docs
+            pane name="storm" size="34%" {
                 command "bash"
             }
         }

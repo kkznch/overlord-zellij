@@ -42,9 +42,10 @@ pub fn execute(session_name: &str) -> Result<()> {
         let icon = match role {
             Role::Overlord => "👑",
             Role::Strategist => "🗡️",
-            Role::LegionImpl => "💪",
-            Role::LegionDebug => "🔥",
-            Role::LegionDocs => "📜",
+            Role::Inferno => "🔥",
+            Role::Glacier => "🧊",
+            Role::Shadow => "🌑",
+            Role::Storm => "⚡",
         };
         println!("  {} {}", icon, role.display_name());
     }

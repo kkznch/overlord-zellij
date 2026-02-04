@@ -29,26 +29,28 @@ impl RitualInjector {
     pub fn inject_ritual(&self, role: &Role) -> Result<()> {
         let ritual_content = self.load_ritual(role)?;
 
-        // Navigate to the correct tab
-        let tab_name = match role {
-            Role::Overlord => "overlord",
-            Role::Strategist => "strategist",
-            Role::LegionImpl | Role::LegionDebug | Role::LegionDocs => "legions",
-        };
-        self.pane_writer.focus_tab(tab_name)?;
+        // Navigate to the correct tab using Role's tab_name()
+        self.pane_writer.focus_tab(role.tab_name())?;
 
-        // For legions tab, need to focus the correct pane
-        if matches!(
-            role,
-            Role::LegionImpl | Role::LegionDebug | Role::LegionDocs
-        ) {
-            // Focus the appropriate pane within legions tab
+        // For command tab, need to focus the correct pane (Overlord left, Strategist right)
+        if role.tab_name() == "command" {
             match role {
-                Role::LegionImpl => {} // First pane, already focused
-                Role::LegionDebug => {
+                Role::Overlord => {} // First pane, already focused
+                Role::Strategist => {
                     self.pane_writer.focus_next_pane()?;
                 }
-                Role::LegionDocs => {
+                _ => {}
+            }
+        }
+
+        // For support tab, need to focus the correct pane (Glacier, Shadow, Storm)
+        if role.tab_name() == "support" {
+            match role {
+                Role::Glacier => {} // First pane, already focused
+                Role::Shadow => {
+                    self.pane_writer.focus_next_pane()?;
+                }
+                Role::Storm => {
                     self.pane_writer.focus_next_pane()?;
                     self.pane_writer.focus_next_pane()?;
                 }

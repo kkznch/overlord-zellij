@@ -1,15 +1,4 @@
-## Requirements
-
-### Requirement: Ritual file loading
-The system SHALL load ritual content from markdown files in the rituals/ directory.
-
-#### Scenario: Load ritual
-- **WHEN** ritual injection starts for a role
-- **THEN** system reads content from rituals/<role_ritual_file>
-
-#### Scenario: Missing ritual file
-- **WHEN** ritual file does not exist
-- **THEN** system returns error with file path
+## MODIFIED Requirements
 
 ### Requirement: Six ritual files
 The rituals directory SHALL contain six files: overlord.md, strategist.md, inferno.md, glacier.md, shadow.md, storm.md.
@@ -17,7 +6,6 @@ The rituals directory SHALL contain six files: overlord.md, strategist.md, infer
 #### Scenario: Ritual files exist
 - **WHEN** summon command runs
 - **THEN** system reads from rituals/overlord.md for Overlord
-- **THEN** system reads from rituals/strategist.md for Strategist
 - **THEN** system reads from rituals/inferno.md for Inferno
 - **THEN** system reads from rituals/glacier.md for Glacier
 - **THEN** system reads from rituals/shadow.md for Shadow
@@ -38,35 +26,6 @@ The system SHALL navigate to correct tab before injecting to generals.
 - **WHEN** injecting to Glacier, Shadow, or Storm
 - **THEN** system focuses "support" tab
 - **THEN** system uses focus-next-pane to reach correct general
-
-### Requirement: Text injection via write-chars
-The system SHALL inject prompts using Zellij's write-chars action.
-
-#### Scenario: Write prompt text
-- **WHEN** pane is focused
-- **THEN** system runs `zellij --session <name> action write-chars <text>`
-
-#### Scenario: Execute prompt
-- **WHEN** text is written
-- **THEN** system sends Enter key via `zellij action write 13`
-
-### Requirement: Injection timing
-The system SHALL include delays between operations to ensure pane readiness.
-
-#### Scenario: Pre-injection delay
-- **WHEN** about to inject prompt
-- **THEN** system waits 500ms before writing
-
-#### Scenario: Inter-role delay
-- **WHEN** injecting to multiple roles
-- **THEN** system waits 1 second between each role
-
-### Requirement: Skip ritual option
-The system SHALL allow skipping ritual injection via --no-rituals flag.
-
-#### Scenario: Skip rituals
-- **WHEN** user runs `ovld summon --no-rituals`
-- **THEN** system creates session without injecting any prompts
 
 ### Requirement: Workflow instructions in prompts
 Each general's ritual SHALL include their role in the workflow pipeline.
@@ -90,3 +49,9 @@ Each general's ritual SHALL include their role in the workflow pipeline.
 - **WHEN** Storm ritual is loaded
 - **THEN** prompt includes "receive logic from Inferno"
 - **THEN** prompt includes "create UI and documentation"
+
+## REMOVED Requirements
+
+### Requirement: Legion ritual files
+**Reason**: Replaced by Four Generals ritual files
+**Migration**: Delete legion_impl.md, legion_debug.md, legion_docs.md; create inferno.md, glacier.md, shadow.md, storm.md

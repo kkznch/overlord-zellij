@@ -1,4 +1,4 @@
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Six distinct roles
 The system SHALL define six roles: Overlord, Strategist, Inferno, Glacier, Shadow, Storm.
@@ -7,22 +7,8 @@ The system SHALL define six roles: Overlord, Strategist, Inferno, Glacier, Shado
 - **WHEN** system initializes
 - **THEN** all six roles are available with display names in Japanese and English
 
-### Requirement: Overlord role
-The Overlord (魔王) SHALL translate user wishes into technical specifications and provide final judgment on deliverables.
-
-#### Scenario: Overlord display
-- **WHEN** status command lists roles
-- **THEN** Overlord displays as "魔王 (Overlord)" with crown icon
-
-### Requirement: Strategist role
-The Strategist (闇の軍師) SHALL break down Overlord commands into concrete tasks and coordinate the generals.
-
-#### Scenario: Strategist display
-- **WHEN** status command lists roles
-- **THEN** Strategist displays as "闘の軍師 (Strategist)" with sword icon
-
 ### Requirement: Four Generals (Shitennou)
-The system SHALL define four generals: Inferno (業火), Glacier (氷結), Shadow (常闇), Storm (疾風).
+The system SHALL define four generals replacing the three legions: Inferno (業火), Glacier (氷結), Shadow (常闇), Storm (疾風).
 
 #### Scenario: Generals display
 - **WHEN** status command lists roles
@@ -43,10 +29,6 @@ The system SHALL maintain four layers: User (深淵の意志) → Overlord (魔�
 Each role SHALL have a corresponding ritual file.
 
 #### Scenario: Ritual file mapping
-- **WHEN** role is Overlord
-- **THEN** ritual file is "overlord.md"
-- **WHEN** role is Strategist
-- **THEN** ritual file is "strategist.md"
 - **WHEN** role is Inferno
 - **THEN** ritual file is "inferno.md"
 - **WHEN** role is Glacier
@@ -55,3 +37,9 @@ Each role SHALL have a corresponding ritual file.
 - **THEN** ritual file is "shadow.md"
 - **WHEN** role is Storm
 - **THEN** ritual file is "storm.md"
+
+## REMOVED Requirements
+
+### Requirement: Three legions
+**Reason**: Replaced by Four Generals (Shitennou) system
+**Migration**: LegionImpl → Inferno, LegionDebug → Shadow, LegionDocs → Storm, (new) Glacier
