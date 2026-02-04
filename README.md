@@ -1,65 +1,67 @@
 # overlord-zellij
 
-Zellij上で複数のClaudeインスタンスを「魔王軍」として組織化するCLIツール。
+A CLI tool that orchestrates multiple Claude instances as a "Demon Army" on Zellij.
 
-## コンセプト
+[日本語版 README](README.ja.md)
 
-**「ユーザーは神託を下すだけ。あとは魔王軍がすべてやる。」**
+## Concept
 
-ユーザーは曖昧な要望を一言伝えるだけでいい。魔王がそれを技術仕様に翻訳し、軍師がタスクを分解し、四天王が専門分野に応じて実装・テスト・ドキュメント作成まで自律的に完遂する。
+**"The user only issues divine commands. The Demon Army handles everything else."**
+
+Users simply convey vague requests in a single statement. The Overlord translates it into technical specifications, the Strategist breaks down tasks, and the Four Heavenly Kings autonomously complete implementation, testing, and documentation according to their specialties.
 
 ```
-深淵の意志（ユーザー）
+The Abyss's Will (User)
    │
-   │ 「〇〇作って」（曖昧でOK）
+   │ "Build something like X" (vague is fine)
    ↓
-魔王 (Overlord) ─── 要件定義・技術仕様に変換
+Overlord ─────────── Converts to requirements & technical specs
    ↓
-軍師 (Strategist) ─ タスク分解・四天王へ配分
+Strategist ───────── Decomposes tasks & distributes to Four Kings
    ↓
-┌──────┬──────┬──────┬──────┐
-│ 氷結  │ 業火  │ 常闇  │ 疾風  │
-│型定義 │実装   │テスト │UI/Docs│
-└──────┴──────┴──────┴──────┘
+┌──────────┬──────────┬──────────┬──────────┐
+│ Glacier  │ Inferno  │  Shadow  │  Storm   │
+│  Types   │  Logic   │  Tests   │ UI/Docs  │
+└──────────┴──────────┴──────────┴──────────┘
         ↓
-   完成品がユーザーに届く
+   Finished product delivered to user
 ```
 
-ユーザーが自分でタスク分解したり、複数のClaudeに個別に指示を出す必要はない。
+No need for users to decompose tasks themselves or give individual instructions to multiple Claude instances.
 
-## 階層構造
+## Hierarchy
 
-### 司令部（Command Layer）
-- **魔王 (Overlord)** - ユーザーの曖昧な要望を技術仕様・要件定義に変換
-- **軍師 (Strategist)** - タスクを分解し、四天王へ配分・指揮
+### Command Layer
+- **Overlord** - Transforms user's vague requests into technical specs & requirements
+- **Strategist** - Decomposes tasks, distributes & commands the Four Heavenly Kings
 
-### 四天王（Shitennou / Execution Layer）
-| 名前 | 専門領域 | 役割 |
-|------|----------|------|
-| 氷結の将 (Glacier) | Arch & Refactor | 型・構造を先行定義、リファクタリング |
-| 業火の将 (Inferno) | Logic & Core | 純粋なビジネスロジック・アルゴリズム実装 |
-| 常闇の将 (Shadow) | Audit & Security | テスト作成、バグ狩り、脆弱性診断 |
-| 疾風の将 (Storm) | UI & Docs | UI実装、ドキュメント作成 |
+### Four Heavenly Kings (Execution Layer)
+| Name | Specialty | Role |
+|------|-----------|------|
+| Glacier | Arch & Refactor | Defines types & structures upfront, refactoring |
+| Inferno | Logic & Core | Pure business logic & algorithm implementation |
+| Shadow | Audit & Security | Test creation, bug hunting, vulnerability assessment |
+| Storm | UI & Docs | UI implementation, documentation |
 
-## 連動の法（ワークフロー）
+## Workflow Pipeline
 
-四天王は以下のパイプラインで連携する：
+The Four Heavenly Kings coordinate through this pipeline:
 
 ```
-Glacier (型定義) → Inferno (ロジック実装) → Shadow (テスト)
-                                         ↘ Storm (UI/ドキュメント)
+Glacier (Types) → Inferno (Logic) → Shadow (Tests)
+                                  ↘ Storm (UI/Docs)
 ```
 
-1. **Glacier** が先に型・interface・構造を定義
-2. **Inferno** がその型に沿ってロジックを実装
-3. **Shadow** が Inferno のコードをテスト・デバッグ
-4. **Storm** が並列で UI・ドキュメントを作成
+1. **Glacier** defines types, interfaces, and structures first
+2. **Inferno** implements logic following those types
+3. **Shadow** tests and debugs Inferno's code
+4. **Storm** creates UI and documentation in parallel
 
-これにより各Claudeの負荷を分散し、専門性を活かした効率的な開発が可能。
+This distributes workload across Claude instances and enables efficient development leveraging each one's specialty.
 
-## レイアウト構成
+## Layout Structure
 
-Zellijセッションは3つのタブで構成：
+The Zellij session consists of 3 tabs:
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -72,7 +74,7 @@ Zellijセッションは3つのタブで構成：
 │ Tab 2: battlefield (default focus)          │
 │ ┌───────────────────────────────────────────┤
 │ │                 Inferno                   │
-│ │             (フルサイズ)                   │
+│ │              (full size)                  │
 │ └───────────────────────────────────────────┤
 ├─────────────────────────────────────────────┤
 │ Tab 3: support                              │
@@ -82,96 +84,113 @@ Zellijセッションは3つのタブで構成：
 │ └─────────────┴─────────────┴───────────────┘
 ```
 
-- **command**: 司令部。要件定義とタスク管理
-- **battlefield**: 主戦場。メインの実装作業
-- **support**: 補助部隊。アーキテクチャ・テスト・ドキュメント
+- **command**: Headquarters. Requirements definition and task management
+- **battlefield**: Main battlefield. Primary implementation work
+- **support**: Support troops. Architecture, testing, documentation
 
-## インストール
+## Installation
 
 ```bash
 cargo install --path .
 ```
 
-## 使い方
+## Usage
 
 ```bash
-# 魔王軍を召喚
+# Summon the Demon Army
 ovld summon
 
-# 軍勢の状況確認
+# Check army status
 ovld status
 
-# 魔王軍を殲滅
+# Slay the Demon Army
 ovld slay
 ```
 
-### オプション
+### Options
 
 ```bash
-# カスタムセッション名
+# Custom session name
 ovld summon --session myarmy
 
-# カスタムレイアウト
-ovld summon --layout minimal
-
-# 儀式（プロンプト注入）をスキップ
+# Skip ritual injection (starts bash instead of Claude)
 ovld summon --no-rituals
 
-# 確認なしで終了
+# Force kill without confirmation
 ovld slay --force
 ```
 
-## 動作の仕組み
+## How It Works
 
-### 1. セッション作成
-`ovld summon` を実行すると：
-1. Zellijセッションを `layouts/army.kdl` レイアウトで作成
-2. 6つのペインが3タブに配置される
-3. 各ペインでbashシェルが起動
+### 1. Ritual Resolution
+When `ovld summon` is executed:
+1. Checks for local `./rituals/` directory first
+2. Falls back to global `~/.config/ovld/rituals/` if not found
+3. Auto-creates default rituals in global config on first run
 
-### 2. 儀式の注入（Ritual Injection）
-`--no-rituals` を指定しない限り：
-1. 各ペインに対応する `rituals/*.md` を読み込む
-2. `zellij action write-chars` でプロンプトを注入
-3. 各Claudeインスタンスが専門的な役割を認識
+### 2. Dynamic Layout Generation
+1. Generates KDL layout dynamically with absolute paths to ritual files
+2. Each pane starts `claude --system-prompt-file <ritual_path>`
+3. Creates temporary KDL file that's cleaned up after session ends
 
-### 3. 運用フロー
-1. **command** タブで魔王に要件を伝える
-2. 軍師がタスクを分解し、四天王に指示
-3. **battlefield** タブで Inferno がメイン実装
-4. **support** タブで Glacier/Shadow/Storm が支援
+### 3. Session Management
+1. If session already exists, attaches to it
+2. Otherwise, creates new Zellij session with generated layout
+3. CLI blocks until Zellij session ends (user exits or detaches)
 
-## 必要環境
+### 4. Operational Flow
+1. Issue requirements to Overlord in **command** tab
+2. Strategist decomposes tasks and directs Four Heavenly Kings
+3. **Inferno** does main implementation in **battlefield** tab
+4. **Glacier/Shadow/Storm** provide support in **support** tab
 
-- [Zellij](https://zellij.dev/) がインストールされていること
-- 各ペインで `claude` CLI が利用可能であること
+## Requirements
 
-## ディレクトリ構成
+- [Zellij](https://zellij.dev/) installed
+- `claude` CLI available in PATH
+
+## Directory Structure
 
 ```
 overlord-zellij/
 ├── src/
-│   ├── main.rs           # CLIエントリーポイント
-│   ├── commands/         # summon/slay/status コマンド
-│   ├── zellij/           # Zellijセッション・ペイン操作
-│   └── army/             # 役職定義・儀式注入
+│   ├── main.rs           # CLI entry point
+│   ├── config.rs         # Config & ritual resolution
+│   ├── layout.rs         # Dynamic KDL generation
+│   ├── commands/         # summon/slay/status commands
+│   ├── zellij/           # Zellij session management
+│   └── army/             # Role definitions
 ├── layouts/
-│   └── army.kdl          # Zellijレイアウト定義
-├── rituals/              # 各役職のシステムプロンプト
+│   └── army.kdl          # Zellij layout definition (reference)
+├── rituals/              # System prompts for each role
 │   ├── overlord.md
 │   ├── strategist.md
 │   ├── inferno.md
 │   ├── glacier.md
 │   ├── shadow.md
 │   └── storm.md
-└── openspec/             # 仕様ドキュメント
+└── openspec/             # Specification documents
 ```
 
-## 仕様
+## Configuration
 
-詳細な仕様は `openspec/specs/` を参照：
-- `ovld-cli/` - CLIコマンド仕様
-- `army-hierarchy/` - 階層構造・役職仕様
-- `zellij-session/` - セッション管理・レイアウト仕様
-- `ritual-injection/` - プロンプト注入仕様
-- `workflow-protocol/` - 四天王の連動プロトコル
+### Ritual Files Location
+Rituals are resolved with local-first priority:
+1. `./rituals/` - Project-local rituals (customize per project)
+2. `~/.config/ovld/rituals/` - Global rituals (default)
+
+### Customizing Rituals
+Copy the default rituals to your project and modify:
+```bash
+cp -r ~/.config/ovld/rituals ./rituals
+# Edit ./rituals/*.md as needed
+```
+
+## Specifications
+
+For detailed specifications, see `openspec/specs/`:
+- `ovld-cli/` - CLI command specification
+- `army-hierarchy/` - Hierarchy & role specification
+- `zellij-session/` - Session management & layout specification
+- `ritual-injection/` - Prompt injection specification
+- `workflow-protocol/` - Four Heavenly Kings coordination protocol
