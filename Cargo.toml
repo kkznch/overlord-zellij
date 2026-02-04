@@ -23,6 +23,9 @@ colored = "2.1"
 # File path handling
 dirs = "5.0"
 
+# Temp file handling
+tempfile = "3.10"
+
 [dev-dependencies]
 assert_cmd = "2.0"
 predicates = "3.1"
