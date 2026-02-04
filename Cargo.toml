@@ -1,0 +1,29 @@
+[package]
+name = "ovld"
+version = "0.1.0"
+edition = "2024"
+description = "Overlord CLI - Command your Claude army on Zellij"
+license = "MIT"
+
+[[bin]]
+name = "ovld"
+path = "src/main.rs"
+
+[dependencies]
+# CLI Framework
+clap = { version = "4.5", features = ["derive"] }
+
+# Error Handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Colored output
+colored = "2.1"
+
+# File path handling
+dirs = "5.0"
+
+[dev-dependencies]
+assert_cmd = "2.0"
+predicates = "3.1"
+tempfile = "3.10"

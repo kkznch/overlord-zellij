@@ -1,0 +1,41 @@
+layout {
+    // Main tab for the Overlord (魔王)
+    tab name="overlord" focus=true {
+        pane name="overlord" {
+            command "bash"
+        }
+    }
+
+    // Tab for the Dark Strategist (軍師)
+    tab name="strategist" {
+        pane name="strategist" {
+            command "bash"
+        }
+    }
+
+    // Tab for the Legions (兵団) - split into 3 panes
+    tab name="legions" {
+        pane split_direction="horizontal" {
+            // 第一兵団（剛腕）- Implementation
+            pane name="legion-impl" size="33%" {
+                command "bash"
+            }
+            // 第二兵団（処刑）- Debug/Review
+            pane name="legion-debug" size="33%" {
+                command "bash"
+            }
+            // 第三兵団（記録）- Documentation
+            pane name="legion-docs" size="34%" {
+                command "bash"
+            }
+        }
+    }
+
+    // Compact bar at bottom
+    default_tab_template {
+        pane size=1 borderless=true {
+            plugin location="compact-bar"
+        }
+        children
+    }
+}
