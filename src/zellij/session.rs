@@ -15,10 +15,19 @@ impl ZellijSession {
     /// Start a new Zellij session with the specified layout and attach immediately
     /// This blocks until the Zellij session ends (user exits or detaches)
     pub fn start(&self, layout_path: &str) -> Result<()> {
-        Command::new("zellij")
-            .args(["--session", &self.name, "--layout", layout_path])
+        let status = Command::new("zellij")
+            .args([
+                "--session",
+                &self.name,
+                "--new-session-with-layout",
+                layout_path,
+            ])
             .status()
             .context("Failed to start Zellij session")?;
+
+        if !status.success() {
+            anyhow::bail!("Zellij exited with status: {}", status);
+        }
         Ok(())
     }
 

@@ -13,7 +13,7 @@ pub fn generate_layout(rituals_dir: &PathBuf, cwd: &PathBuf) -> String {
         format!(
             r#"            pane name="{name}"{size_attr} cwd="{cwd_str}" {{
                 command "claude"
-                args ["--system-prompt-file", "{}"]
+                args "--system-prompt-file" "{}"
             }}"#,
             ritual_path.display()
         )
