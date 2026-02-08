@@ -88,6 +88,12 @@ The Zellij session consists of 3 tabs:
 - **battlefield**: Main battlefield. Primary implementation work
 - **support**: Support troops. Architecture, testing, documentation
 
+## Requirements
+
+- [Rust](https://www.rust-lang.org/) (for building)
+- [Zellij](https://zellij.dev/) installed
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`claude` CLI) available in PATH
+
 ## Installation
 
 ```bash
@@ -105,19 +111,41 @@ ovld status
 
 # Unsummon the Demon Army
 ovld unsummon
+
+# Deploy/redeploy global config
+ovld init
+ovld init --force   # Overwrite existing config
 ```
 
 ### Options
 
 ```bash
-# Custom session name
-ovld summon --session myarmy
-
-# Skip ritual injection (starts bash instead of Claude)
-ovld summon --no-rituals
-
 # Force unsummon without confirmation
 ovld unsummon --force
+```
+
+## Configuration
+
+### Language Setting
+CLI output messages support English and Japanese. Configure via `~/.config/ovld/config.toml`:
+
+```toml
+lang = "en"   # English (default)
+# lang = "ja" # Japanese
+```
+
+Run `ovld init` to generate the default config file, or `ovld init --force` to reset it.
+
+### Ritual Files Location
+Rituals are resolved with local-first priority:
+1. `./rituals/` - Project-local rituals (customize per project)
+2. `~/.config/ovld/rituals/` - Global rituals (default)
+
+### Customizing Rituals
+Copy the default rituals to your project and modify:
+```bash
+cp -r ~/.config/ovld/rituals ./rituals
+# Edit ./rituals/*.md as needed
 ```
 
 ## How It Works
@@ -134,20 +162,15 @@ When `ovld summon` is executed:
 3. Creates temporary KDL file that's cleaned up after session ends
 
 ### 3. Session Management
-1. If session already exists, attaches to it
-2. Otherwise, creates new Zellij session with generated layout
-3. CLI blocks until Zellij session ends (user exits or detaches)
+1. Creates new Zellij session with generated layout
+2. CLI blocks until Zellij session ends (user exits or detaches)
+3. Automatically cleans up EXITED sessions on exit
 
 ### 4. Operational Flow
 1. Issue requirements to Overlord in **command** tab
 2. Strategist decomposes tasks and directs Four Heavenly Kings
 3. **Inferno** does main implementation in **battlefield** tab
 4. **Glacier/Shadow/Storm** provide support in **support** tab
-
-## Requirements
-
-- [Zellij](https://zellij.dev/) installed
-- `claude` CLI available in PATH
 
 ## Directory Structure
 
@@ -160,8 +183,6 @@ overlord-zellij/
 │   ├── commands/         # summon/unsummon/status commands
 │   ├── zellij/           # Zellij session management
 │   └── army/             # Role definitions
-├── layouts/
-│   └── army.kdl          # Zellij layout definition (reference)
 ├── rituals/              # System prompts for each role
 │   ├── overlord.md
 │   ├── strategist.md
@@ -172,25 +193,15 @@ overlord-zellij/
 └── openspec/             # Specification documents
 ```
 
-## Configuration
-
-### Ritual Files Location
-Rituals are resolved with local-first priority:
-1. `./rituals/` - Project-local rituals (customize per project)
-2. `~/.config/ovld/rituals/` - Global rituals (default)
-
-### Customizing Rituals
-Copy the default rituals to your project and modify:
-```bash
-cp -r ~/.config/ovld/rituals ./rituals
-# Edit ./rituals/*.md as needed
-```
-
 ## Specifications
 
 For detailed specifications, see `openspec/specs/`:
 - `ovld-cli/` - CLI command specification
 - `army-hierarchy/` - Hierarchy & role specification
 - `zellij-session/` - Session management & layout specification
+- `config-management/` - Global config & ritual resolution specification
+- `i18n/` - Internationalization (en/ja) specification
 - `ritual-injection/` - Prompt injection specification
 - `workflow-protocol/` - Four Heavenly Kings coordination protocol
+- `mcp-relay/` - MCP relay server specification
+- `auto-notification/` - Inter-pane auto-notification specification
