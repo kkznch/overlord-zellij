@@ -76,6 +76,17 @@ pub fn execute() -> Result<()> {
     // Clean up session metadata when session ends (regardless of success/failure)
     let _ = delete_session_metadata();
 
+    // Clean up EXITED session if it still exists (best-effort)
+    // Note: detach leaves session alive, exit leaves it EXITED — only clean up EXITED
+    if session.exists().unwrap_or(false) {
+        let _ = session.kill();
+        let _ = session.delete(true);
+        if let Ok(relay) = relay_dir() {
+            let store = MessageStore::new(relay);
+            let _ = store.cleanup();
+        }
+    }
+
     // Handle the result
     result?;
 
