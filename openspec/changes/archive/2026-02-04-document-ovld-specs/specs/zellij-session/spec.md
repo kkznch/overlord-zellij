@@ -1,42 +1,42 @@
-## ADDED Requirements
+## Added Requirements
 
-### Requirement: Session creation with layout
-The system SHALL create Zellij sessions using the specified KDL layout file.
+### Requirement: レイアウトを使用したセッション作成
+システムは指定されたKDLレイアウトファイルを使用してZellijセッションを作成しなければならない（SHALL）。
 
-#### Scenario: Start session
-- **WHEN** summon command executes
-- **THEN** system runs `zellij --session <name> --layout <path>`
+#### Scenario: セッションの開始
+- **WHEN** summonコマンドが実行されたとき
+- **THEN** システムが `zellij --session <name> --layout <path>` を実行すること
 
-### Requirement: Session existence check
-The system SHALL check whether a session already exists before creating a new one.
+### Requirement: セッション存在チェック
+システムは新規作成前にセッションが既に存在するかどうかを確認しなければならない（SHALL）。
 
-#### Scenario: Check existing session
-- **WHEN** system checks for session
-- **THEN** system runs `zellij list-sessions` and searches for session name in output
+#### Scenario: 既存セッションの確認
+- **WHEN** システムがセッションを確認するとき
+- **THEN** `zellij list-sessions` を実行し、出力からセッション名を検索すること
 
-### Requirement: Session termination
-The system SHALL terminate sessions by killing and optionally deleting them.
+### Requirement: セッション終了
+システムはセッションをキルし、オプションで削除することによって終了しなければならない（SHALL）。
 
-#### Scenario: Kill session
-- **WHEN** slay command executes
-- **THEN** system runs `zellij kill-session <name>`
+#### Scenario: セッションのキル
+- **WHEN** slayコマンドが実行されたとき
+- **THEN** システムが `zellij kill-session <name>` を実行すること
 
-#### Scenario: Delete session data
-- **WHEN** slay command completes
-- **THEN** system runs `zellij delete-session <name> --force` for cleanup
+#### Scenario: セッションデータの削除
+- **WHEN** slayコマンドが完了したとき
+- **THEN** クリーンアップのためにシステムが `zellij delete-session <name> --force` を実行すること
 
-### Requirement: Session attachment
-The system SHALL attach to existing sessions instead of creating duplicates.
+### Requirement: セッションアタッチ
+システムは重複作成ではなく既存セッションにアタッチしなければならない（SHALL）。
 
-#### Scenario: Attach to session
-- **WHEN** session exists and summon is called
-- **THEN** system runs `zellij attach <name>`
+#### Scenario: セッションへのアタッチ
+- **WHEN** セッションが存在し、summonが呼ばれたとき
+- **THEN** システムが `zellij attach <name>` を実行すること
 
-### Requirement: KDL layout structure
-The army.kdl layout SHALL define three tabs: overlord, strategist, and legions.
+### Requirement: KDLレイアウト構造
+army.kdl レイアウトは3つのタブを定義しなければならない（SHALL）: overlord、strategist、legions。
 
-#### Scenario: Tab structure
-- **WHEN** layout is loaded
-- **THEN** overlord tab contains single pane with focus=true
-- **THEN** strategist tab contains single pane
-- **THEN** legions tab contains three horizontal panes (33%/33%/34%)
+#### Scenario: タブ構造
+- **WHEN** レイアウトが読み込まれたとき
+- **THEN** overlordタブがfocus=trueの単一ペインを含むこと
+- **THEN** strategistタブが単一ペインを含むこと
+- **THEN** legionsタブが3つの水平ペイン（33%/33%/34%）を含むこと

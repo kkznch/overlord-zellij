@@ -1,92 +1,93 @@
+## Purpose
+儀式プロンプトの読み込み・ペインターゲティング・write-chars テキスト注入・MCP通信プロトコル統合メカニズムを定義する。
+
 ## Requirements
 
-### Requirement: Ritual file loading
-The system SHALL load ritual content from markdown files in the rituals/ directory.
+### Requirement: 儀式ファイルの読み込み
+rituals/ ディレクトリのマークダウンファイルから儀式内容を読み込まなければならない (SHALL)。
 
-#### Scenario: Load ritual
-- **WHEN** ritual injection starts for a role
-- **THEN** system reads content from rituals/<role_ritual_file>
+#### Scenario: 儀式の読み込み
+- **WHEN** ある役割の儀式注入が開始された時
+- **THEN** rituals/<role_ritual_file> から内容を読み込む
 
-#### Scenario: Missing ritual file
-- **WHEN** ritual file does not exist
-- **THEN** system returns error with file path
+#### Scenario: 儀式ファイルが存在しない
+- **WHEN** 儀式ファイルが存在しない時
+- **THEN** ファイルパス付きのエラーを返す
 
-### Requirement: Six ritual files
-The rituals directory SHALL contain six files: overlord.md, strategist.md, inferno.md, glacier.md, shadow.md, storm.md.
+### Requirement: 6つの儀式ファイル
+rituals ディレクトリは6つのファイルを含まなければならない (SHALL): overlord.md, strategist.md, inferno.md, glacier.md, shadow.md, storm.md。
 
-#### Scenario: Ritual files exist
-- **WHEN** summon command runs
-- **THEN** system reads from rituals/overlord.md for Overlord
-- **THEN** system reads from rituals/strategist.md for Strategist
-- **THEN** system reads from rituals/inferno.md for Inferno
-- **THEN** system reads from rituals/glacier.md for Glacier
-- **THEN** system reads from rituals/shadow.md for Shadow
-- **THEN** system reads from rituals/storm.md for Storm
+#### Scenario: 儀式ファイルの存在
+- **WHEN** summon コマンドが実行された時
+- **THEN** rituals/overlord.md を魔王に使用する
+- **THEN** rituals/strategist.md を軍師に使用する
+- **THEN** rituals/inferno.md を業火に使用する
+- **THEN** rituals/glacier.md を氷結に使用する
+- **THEN** rituals/shadow.md を常闇に使用する
+- **THEN** rituals/storm.md を疾風に使用する
 
-### Requirement: Tab-based navigation for injection
-The system SHALL navigate to correct tab before injecting to generals.
+### Requirement: タブベースのナビゲーション
+注入前に正しいタブに移動しなければならない (SHALL)。
 
-#### Scenario: Command tab injection
-- **WHEN** injecting to Overlord or Strategist
-- **THEN** system focuses "command" tab
+#### Scenario: command タブへの注入
+- **WHEN** 魔王または軍師に注入する時
+- **THEN** "command" タブにフォーカスする
 
-#### Scenario: Battlefield tab injection
-- **WHEN** injecting to Inferno
-- **THEN** system focuses "battlefield" tab
+#### Scenario: battlefield タブへの注入
+- **WHEN** 業火に注入する時
+- **THEN** "battlefield" タブにフォーカスする
 
-#### Scenario: Support tab injection
-- **WHEN** injecting to Glacier, Shadow, or Storm
-- **THEN** system focuses "support" tab
-- **THEN** system uses focus-next-pane to reach correct general
+#### Scenario: support タブへの注入
+- **WHEN** 氷結、常闇、疾風に注入する時
+- **THEN** "support" タブにフォーカスする
+- **THEN** 方向キーで正しいペインに移動する
 
-### Requirement: Text injection via write-chars
-The system SHALL inject prompts using Zellij's write-chars action.
+### Requirement: write-chars によるテキスト注入
+Zellij の write-chars アクションでプロンプトを注入しなければならない (SHALL)。
 
-#### Scenario: Write prompt text
-- **WHEN** pane is focused
-- **THEN** system runs `zellij --session <name> action write-chars <text>`
+#### Scenario: プロンプトテキストの書き込み
+- **WHEN** ペインにフォーカスした時
+- **THEN** `zellij --session <name> action write-chars <text>` が実行される
 
-#### Scenario: Execute prompt
-- **WHEN** text is written
-- **THEN** system sends Enter key via `zellij action write 13`
+#### Scenario: プロンプトの実行
+- **WHEN** テキストが書き込まれた時
+- **THEN** 200ms 待機後、`zellij action write-chars "\r"` で Enter キーを送信する
 
-### Requirement: Injection timing
-The system SHALL include delays between operations to ensure pane readiness.
+### Requirement: 注入のタイミング
+ペインの準備を確保するため、操作間に遅延を含めなければならない (SHALL)。
 
-#### Scenario: Pre-injection delay
-- **WHEN** about to inject prompt
-- **THEN** system waits 500ms before writing
+#### Scenario: 注入前の遅延
+- **WHEN** プロンプト注入直前
+- **THEN** 書き込み前に 500ms 待機する
 
-#### Scenario: Inter-role delay
-- **WHEN** injecting to multiple roles
-- **THEN** system waits 1 second between each role
+#### Scenario: 役割間の遅延
+- **WHEN** 複数の役割に注入する時
+- **THEN** 各役割間で 1 秒待機する
 
-### Requirement: Skip ritual option
-The system SHALL allow skipping ritual injection via --no-rituals flag.
+### Requirement: 儀式スキップオプション
+--no-rituals フラグで儀式注入をスキップできなければならない (SHALL)。
 
-#### Scenario: Skip rituals
-- **WHEN** user runs `ovld summon --no-rituals`
-- **THEN** system creates session without injecting any prompts
+#### Scenario: 儀式のスキップ
+- **WHEN** ユーザーが `ovld summon --no-rituals` を実行した時
+- **THEN** プロンプト注入なしでセッションが作成される
 
-### Requirement: Workflow instructions in prompts
-Each general's ritual SHALL include their role in the workflow pipeline.
+### Requirement: MCP通信プロトコルを儀式に含める
+各役割の儀式には MCP 通信プロトコルの指示を含めなければならない (SHALL)（旧テキストベース報告形式を置き換え）。
 
-#### Scenario: Glacier prompt content
-- **WHEN** Glacier ritual is loaded
-- **THEN** prompt includes "define types and structures first"
-- **THEN** prompt includes "pass definitions to Inferno"
+#### Scenario: 魔王の儀式内容
+- **WHEN** 魔王の儀式が読み込まれた時
+- **THEN** MCP通信プロトコルセクションが含まれる
+- **THEN** 軍師への `send_message` 使用指示が含まれる
+- **THEN** `[MESSAGE from ...]` 表示時の `check_inbox` 使用指示が含まれる
 
-#### Scenario: Inferno prompt content
-- **WHEN** Inferno ritual is loaded
-- **THEN** prompt includes "receive structures from Glacier"
-- **THEN** prompt includes "focus on pure logic only"
+#### Scenario: 軍師の儀式内容
+- **WHEN** 軍師の儀式が読み込まれた時
+- **THEN** MCP通信プロトコルセクションが含まれる
+- **THEN** 4人の将への `send_message` 使用指示が含まれる
+- **THEN** 全員への `broadcast` 使用指示が含まれる
 
-#### Scenario: Shadow prompt content
-- **WHEN** Shadow ritual is loaded
-- **THEN** prompt includes "receive implementation from Inferno"
-- **THEN** prompt includes "generate tests and report bugs"
-
-#### Scenario: Storm prompt content
-- **WHEN** Storm ritual is loaded
-- **THEN** prompt includes "receive logic from Inferno"
-- **THEN** prompt includes "create UI and documentation"
+#### Scenario: 四天王の儀式内容
+- **WHEN** 四天王（業火、氷結、常闇、疾風）の儀式が読み込まれた時
+- **THEN** MCP通信プロトコルセクションが含まれる
+- **THEN** 軍師への報告用 `send_message` 使用指示が含まれる
+- **THEN** 状態追跡用 `update_status` 使用指示が含まれる

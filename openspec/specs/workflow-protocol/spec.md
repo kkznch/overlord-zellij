@@ -1,40 +1,43 @@
+## Purpose
+四天王（業火・氷結・常闇・疾風）間の連動ルールと負荷分散パイプラインプロトコルを定義する。各将の専門領域と受け渡しフローを規定する。
+
 ## Requirements
 
-### Requirement: Glacier provides structure first
-氷結の将 SHALL define types, interfaces, and directory structure before Inferno begins implementation.
+### Requirement: 氷結が先に構造を定義
+氷結の将は、業火が実装を開始する前に型・インターフェース・ディレクトリ構造を定義しなければならない (SHALL)。
 
-#### Scenario: Type definition handoff
-- **WHEN** a new feature is requested
-- **THEN** Glacier creates trait/struct definitions
-- **THEN** Inferno implements logic using those definitions
+#### Scenario: 型定義の引き渡し
+- **WHEN** 新機能が要求された時
+- **THEN** 氷結が trait/struct 定義を作成する
+- **THEN** 業火がその定義を使ってロジックを実装する
 
-### Requirement: Inferno focuses on pure logic
-業火の将 SHALL focus exclusively on business logic and algorithms, without handling UI or documentation.
+### Requirement: 業火は純粋なロジックに集中
+業火の将はビジネスロジックとアルゴリズムのみに集中し、UIやドキュメントは扱ってはならない (SHALL)。
 
-#### Scenario: Logic implementation
-- **WHEN** Inferno receives type definitions from Glacier
-- **THEN** Inferno implements core logic only
-- **THEN** Inferno does not write CSS, README, or UI code
+#### Scenario: ロジック実装
+- **WHEN** 業火が氷結から型定義を受け取った時
+- **THEN** 業火はコアロジックのみを実装する
+- **THEN** 業火はCSS、README、UIコードを書かない
 
-### Requirement: Shadow handles testing
-常闘の将 SHALL generate test code and perform debugging on behalf of Inferno.
+### Requirement: 常闇がテストを担当
+常闇の将は業火の代わりにテストコードを生成し、デバッグを行わなければならない (SHALL)。
 
-#### Scenario: Test generation
-- **WHEN** Inferno completes a logic implementation
-- **THEN** Shadow creates test cases for that implementation
-- **THEN** Shadow reports bugs for Inferno to fix
+#### Scenario: テスト生成
+- **WHEN** 業火がロジック実装を完了した時
+- **THEN** 常闇がその実装のテストケースを作成する
+- **THEN** 常闇がバグを報告し、業火に修正を依頼する
 
-### Requirement: Storm handles externals
-疾風の将 SHALL create all UI components, documentation, and user-facing content in parallel.
+### Requirement: 疾風が外装を担当
+疾風の将は全UIコンポーネント・ドキュメント・ユーザー向けコンテンツを並行して作成しなければならない (SHALL)。
 
-#### Scenario: Documentation creation
-- **WHEN** Inferno's logic is available
-- **THEN** Storm creates README and API documentation
-- **THEN** Storm implements frontend components if needed
+#### Scenario: ドキュメント作成
+- **WHEN** 業火のロジックが利用可能になった時
+- **THEN** 疾風がREADMEとAPIドキュメントを作成する
+- **THEN** 必要に応じて疾風がフロントエンドコンポーネントを実装する
 
-### Requirement: Pipeline instructions in rituals
-Each ritual prompt SHALL include instructions about what to receive from and pass to other generals.
+### Requirement: 儀式にパイプライン指示を含める
+各儀式プロンプトは、他の将から何を受け取り、何を渡すかの指示を含まなければならない (SHALL)。
 
-#### Scenario: Ritual contains pipeline
-- **WHEN** ritual is injected to a general
-- **THEN** the prompt includes "receive from X" and "pass to Y" instructions
+#### Scenario: パイプライン指示の存在
+- **WHEN** 将に儀式が注入された時
+- **THEN** プロンプトに「○○から受け取る」「○○に渡す」の指示が含まれる

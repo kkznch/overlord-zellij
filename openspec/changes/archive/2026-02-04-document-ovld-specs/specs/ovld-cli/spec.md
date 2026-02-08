@@ -1,52 +1,52 @@
-## ADDED Requirements
+## Added Requirements
 
-### Requirement: summon command starts session
-The system SHALL provide a `summon` subcommand that starts a new Zellij session with the army layout.
+### Requirement: summonコマンドでセッションを開始する
+システムは魔王軍レイアウトで新しいZellijセッションを開始する `summon` サブコマンドを提供しなければならない（SHALL）。
 
-#### Scenario: New session creation
-- **WHEN** user runs `ovld summon`
-- **THEN** system creates a Zellij session named "overlord" with the army.kdl layout
+#### Scenario: 新規セッションの作成
+- **WHEN** ユーザーが `ovld summon` を実行したとき
+- **THEN** システムが army.kdl レイアウトで "overlord" という名前のZellijセッションを作成すること
 
-#### Scenario: Session already exists
-- **WHEN** user runs `ovld summon` and session "overlord" already exists
-- **THEN** system attaches to the existing session instead of creating a new one
+#### Scenario: セッションが既に存在する場合
+- **WHEN** ユーザーが `ovld summon` を実行し、セッション "overlord" が既に存在するとき
+- **THEN** 新規作成ではなく既存セッションにアタッチすること
 
-### Requirement: slay command terminates session
-The system SHALL provide a `slay` subcommand that terminates the army session and cleans up processes.
+### Requirement: slayコマンドでセッションを終了する
+システムは魔王軍セッションを終了しプロセスをクリーンアップする `slay` サブコマンドを提供しなければならない（SHALL）。
 
-#### Scenario: Session termination with confirmation
-- **WHEN** user runs `ovld slay`
-- **THEN** system prompts for confirmation before terminating
+#### Scenario: 確認付きセッション終了
+- **WHEN** ユーザーが `ovld slay` を実行したとき
+- **THEN** 終了前に確認プロンプトを表示すること
 
-#### Scenario: Force termination
-- **WHEN** user runs `ovld slay --force`
-- **THEN** system terminates the session without confirmation
+#### Scenario: 強制終了
+- **WHEN** ユーザーが `ovld slay --force` を実行したとき
+- **THEN** 確認なしでセッションを終了すること
 
-#### Scenario: Session not found
-- **WHEN** user runs `ovld slay` and session does not exist
-- **THEN** system displays error message "Session 'overlord' not found"
+#### Scenario: セッションが見つからない場合
+- **WHEN** ユーザーが `ovld slay` を実行し、セッションが存在しないとき
+- **THEN** エラーメッセージ "Session 'overlord' not found" を表示すること
 
-### Requirement: status command shows army state
-The system SHALL provide a `status` subcommand that displays the current state of the army session.
+### Requirement: statusコマンドで魔王軍の状態を表示する
+システムは魔王軍セッションの現在の状態を表示する `status` サブコマンドを提供しなければならない（SHALL）。
 
-#### Scenario: Active session
-- **WHEN** user runs `ovld status` and session exists
-- **THEN** system displays session name, status "ACTIVE", and army hierarchy listing
+#### Scenario: アクティブなセッション
+- **WHEN** ユーザーが `ovld status` を実行し、セッションが存在するとき
+- **THEN** セッション名、ステータス "ACTIVE"、および魔王軍の階層一覧を表示すること
 
-#### Scenario: No session
-- **WHEN** user runs `ovld status` and session does not exist
-- **THEN** system displays status "NOT FOUND" and hint to use summon command
+#### Scenario: セッションなし
+- **WHEN** ユーザーが `ovld status` を実行し、セッションが存在しないとき
+- **THEN** ステータス "NOT FOUND" とsummonコマンドの使用ヒントを表示すること
 
-### Requirement: Custom session name
-The system SHALL allow specifying a custom session name via `--session` flag.
+### Requirement: カスタムセッション名
+システムは `--session` フラグでカスタムセッション名を指定できなければならない（SHALL）。
 
-#### Scenario: Custom session name
-- **WHEN** user runs `ovld summon --session myarmy`
-- **THEN** system creates session with name "myarmy"
+#### Scenario: カスタムセッション名
+- **WHEN** ユーザーが `ovld summon --session myarmy` を実行したとき
+- **THEN** "myarmy" という名前でセッションを作成すること
 
-### Requirement: Custom layout
-The system SHALL allow specifying a custom layout via `--layout` flag.
+### Requirement: カスタムレイアウト
+システムは `--layout` フラグでカスタムレイアウトを指定できなければならない（SHALL）。
 
-#### Scenario: Custom layout file
-- **WHEN** user runs `ovld summon --layout minimal`
-- **THEN** system uses layouts/minimal.kdl for the session
+#### Scenario: カスタムレイアウトファイル
+- **WHEN** ユーザーが `ovld summon --layout minimal` を実行したとき
+- **THEN** セッションに layouts/minimal.kdl を使用すること

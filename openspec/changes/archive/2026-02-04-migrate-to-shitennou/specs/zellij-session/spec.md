@@ -1,41 +1,41 @@
-## MODIFIED Requirements
+## Changed Requirements
 
-### Requirement: Three-tab layout structure
-The army.kdl layout SHALL define three tabs: command, battlefield, support.
+### Requirement: 3タブレイアウト構造
+army.kdlレイアウトは、command・battlefield・supportの3タブを定義すること。
 
-#### Scenario: Tab structure
-- **WHEN** layout is loaded
-- **THEN** command tab contains Overlord and Strategist panes (vertical split)
-- **THEN** battlefield tab contains single Inferno pane (large workspace)
-- **THEN** support tab contains Glacier, Shadow, Storm panes (horizontal 3-split)
+#### Scenario: タブ構造
+- **WHEN** レイアウトが読み込まれた場合
+- **THEN** commandタブにOverlordとStrategistのペイン（縦分割）が含まれる
+- **THEN** battlefieldタブにInfernoの単一ペイン（広いワークスペース）が含まれる
+- **THEN** supportタブにGlacier・Shadow・Stormのペイン（横3分割）が含まれる
 
-### Requirement: Six panes total
-The layout SHALL provide six panes for six roles.
+### Requirement: 合計6ペインであること
+レイアウトは6つのロールに対応する6つのペインを提供すること。
 
-#### Scenario: Pane count
-- **WHEN** session starts with army layout
-- **THEN** exactly six panes exist across three tabs
+#### Scenario: ペイン数
+- **WHEN** armyレイアウトでセッションが開始された場合
+- **THEN** 3タブにまたがって正確に6つのペインが存在する
 
-### Requirement: Command tab layout
-The command tab SHALL have Overlord on left and Strategist on right.
+### Requirement: commandタブのレイアウト
+commandタブは左側にOverlord、右側にStrategistを配置すること。
 
-#### Scenario: Command tab
-- **WHEN** user views command tab
-- **THEN** Overlord pane is on the left (smaller)
-- **THEN** Strategist pane is on the right (larger)
+#### Scenario: commandタブ
+- **WHEN** ユーザーがcommandタブを表示した場合
+- **THEN** Overlordペインが左側（小さめ）にある
+- **THEN** Strategistペインが右側（大きめ）にある
 
-### Requirement: Battlefield tab layout
-The battlefield tab SHALL have a single large pane for Inferno.
+### Requirement: battlefieldタブのレイアウト
+battlefieldタブはInferno用の単一の大きなペインを持つこと。
 
-#### Scenario: Battlefield tab
-- **WHEN** user views battlefield tab
-- **THEN** single pane named "inferno" fills the tab
-- **THEN** this tab has focus=true by default
+#### Scenario: battlefieldタブ
+- **WHEN** ユーザーがbattlefieldタブを表示した場合
+- **THEN** 「inferno」という名前の単一ペインがタブ全体を占める
+- **THEN** このタブはデフォルトでfocus=trueである
 
-### Requirement: Support tab layout
-The support tab SHALL have three equal panes for Glacier, Shadow, Storm.
+### Requirement: supportタブのレイアウト
+supportタブはGlacier・Shadow・Stormの3つの均等ペインを持つこと。
 
-#### Scenario: Support tab
-- **WHEN** user views support tab
-- **THEN** three horizontal panes exist (33%/33%/34%)
-- **THEN** order is Glacier, Shadow, Storm from left to right
+#### Scenario: supportタブ
+- **WHEN** ユーザーがsupportタブを表示した場合
+- **THEN** 3つの横並びペインが存在する（33%/33%/34%）
+- **THEN** 左からGlacier・Shadow・Stormの順に配置される

@@ -1,73 +1,94 @@
+## Purpose
+Zellij セッションの作成・管理・レイアウト構造（3タブ6ペイン）および relay ディレクトリ統合を定義する。
+
 ## Requirements
 
-### Requirement: Session creation with layout
-The system SHALL create Zellij sessions using the specified KDL layout file.
+### Requirement: レイアウトを使ったセッション作成
+`--new-session-with-layout` フラグで Zellij セッションを作成し、各ペインの Claude コマンドに `--mcp-config` を含めなければならない (SHALL)。
 
-#### Scenario: Start session
-- **WHEN** summon command executes
-- **THEN** system runs `zellij --session <name> --layout <path>`
+#### Scenario: セッション開始
+- **WHEN** summon コマンドが実行された時
+- **THEN** `zellij --session <name> --new-session-with-layout <path>` が実行される
 
-### Requirement: Session existence check
-The system SHALL check whether a session already exists before creating a new one.
+#### Scenario: レイアウトに MCP 設定を含む
+- **WHEN** レイアウトが生成された時
+- **THEN** 各ペインの `claude` コマンドに `--mcp-config <role>.json` が含まれる
 
-#### Scenario: Check existing session
-- **WHEN** system checks for session
-- **THEN** system runs `zellij list-sessions` and searches for session name in output
+### Requirement: セッション存在確認
+新規作成前にセッションが既に存在するか確認しなければならない (SHALL)。
 
-### Requirement: Session termination
-The system SHALL terminate sessions by killing and optionally deleting them.
+#### Scenario: 既存セッションの確認
+- **WHEN** セッションの存在を確認する時
+- **THEN** `zellij list-sessions` を実行し、セッション名を出力から検索する
 
-#### Scenario: Kill session
-- **WHEN** slay command executes
-- **THEN** system runs `zellij kill-session <name>`
+### Requirement: セッション終了
+セッションの kill と任意の削除で終了処理を行わなければならない (SHALL)。
 
-#### Scenario: Delete session data
-- **WHEN** slay command completes
-- **THEN** system runs `zellij delete-session <name> --force` for cleanup
+#### Scenario: セッション kill
+- **WHEN** slay コマンドが実行された時
+- **THEN** `zellij kill-session <name>` が実行される
 
-### Requirement: Session attachment
-The system SHALL attach to existing sessions instead of creating duplicates.
+#### Scenario: セッションデータ削除
+- **WHEN** slay コマンドが完了した時
+- **THEN** `zellij delete-session <name> --force` でクリーンアップが実行される
 
-#### Scenario: Attach to session
-- **WHEN** session exists and summon is called
-- **THEN** system runs `zellij attach <name>`
+### Requirement: セッションアタッチ
+重複作成せず、既存セッションにアタッチしなければならない (SHALL)。
 
-### Requirement: Three-tab layout structure
-The army.kdl layout SHALL define three tabs: command, battlefield, support.
+#### Scenario: セッションへのアタッチ
+- **WHEN** セッションが存在し、summon が呼ばれた時
+- **THEN** `zellij attach <name>` が実行される
 
-#### Scenario: Tab structure
-- **WHEN** layout is loaded
-- **THEN** command tab contains Overlord and Strategist panes (vertical split)
-- **THEN** battlefield tab contains single Inferno pane (large workspace)
-- **THEN** support tab contains Glacier, Shadow, Storm panes (horizontal 3-split)
+### Requirement: 3タブレイアウト構造
+レイアウトは3つのタブを定義しなければならない (SHALL): command、battlefield、support。command タブがデフォルトで `focus=true` であること。
 
-### Requirement: Six panes total
-The layout SHALL provide six panes for six roles.
+#### Scenario: タブ構造
+- **WHEN** レイアウトが読み込まれた時
+- **THEN** command タブに魔王と軍師のペイン (垂直分割) があり、`focus=true` である
+- **THEN** battlefield タブに業火の単一ペイン (大型作業領域) がある
+- **THEN** support タブに氷結・常闇・疾風のペイン (水平3分割) がある
 
-#### Scenario: Pane count
-- **WHEN** session starts with army layout
-- **THEN** exactly six panes exist across three tabs
+### Requirement: 6ペイン合計
+レイアウトは6つの役割に対して6つのペインを提供しなければならない (SHALL)。
 
-### Requirement: Command tab layout
-The command tab SHALL have Overlord on left and Strategist on right.
+#### Scenario: ペイン数
+- **WHEN** 魔王軍レイアウトでセッションが開始された時
+- **THEN** 3つのタブにわたって正確に6つのペインが存在する
 
-#### Scenario: Command tab
-- **WHEN** user views command tab
-- **THEN** Overlord pane is on the left (smaller)
-- **THEN** Strategist pane is on the right (larger)
+### Requirement: command タブのレイアウト
+command タブは左に魔王、右に軍師を配置しなければならない (SHALL)。
 
-### Requirement: Battlefield tab layout
-The battlefield tab SHALL have a single large pane for Inferno.
+#### Scenario: command タブ
+- **WHEN** ユーザーが command タブを表示した時
+- **THEN** 魔王ペインが左側 (小さい) にある
+- **THEN** 軍師ペインが右側 (大きい) にある
 
-#### Scenario: Battlefield tab
-- **WHEN** user views battlefield tab
-- **THEN** single pane named "inferno" fills the tab
-- **THEN** this tab has focus=true by default
+### Requirement: battlefield タブのレイアウト
+battlefield タブは業火の単一大型ペインを持たなければならない (SHALL)。
 
-### Requirement: Support tab layout
-The support tab SHALL have three equal panes for Glacier, Shadow, Storm.
+#### Scenario: battlefield タブ
+- **WHEN** ユーザーが battlefield タブを表示した時
+- **THEN** "inferno" という名前の単一ペインがタブ全体を占める
 
-#### Scenario: Support tab
-- **WHEN** user views support tab
-- **THEN** three horizontal panes exist (33%/33%/34%)
-- **THEN** order is Glacier, Shadow, Storm from left to right
+### Requirement: support タブのレイアウト
+support タブは氷結・常闇・疾風の3つの均等ペインを持たなければならない (SHALL)。
+
+#### Scenario: support タブ
+- **WHEN** ユーザーが support タブを表示した時
+- **THEN** 3つの水平ペインが存在する (33%/33%/34%)
+- **THEN** 順番は氷結、常闇、疾風
+
+### Requirement: summon 時の relay ディレクトリ初期化
+summon コマンドはセッション開始前に relay ディレクトリ構造を初期化し、各役割用の MCP 設定 JSON を生成しなければならない (SHALL)。
+
+#### Scenario: relay セットアップ
+- **WHEN** summon コマンドが実行された時
+- **THEN** `~/.config/ovld/relay/` に relay ディレクトリ構造が作成される
+- **THEN** `~/.config/ovld/relay/mcp/{role}.json` に各役割用の MCP 設定 JSON が生成される
+
+### Requirement: slay 時の relay クリーンアップ
+slay コマンドはセッション終了時に relay ディレクトリをクリーンアップしなければならない (SHALL)。
+
+#### Scenario: relay クリーンアップ
+- **WHEN** slay コマンドが実行された時
+- **THEN** relay メッセージストアのクリーンアップが呼ばれる

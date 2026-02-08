@@ -1,52 +1,52 @@
-## ADDED Requirements
+## Added Requirements
 
-### Requirement: Ritual file loading
-The system SHALL load ritual content from markdown files in the rituals/ directory.
+### Requirement: 儀式ファイルの読み込み
+システムは rituals/ ディレクトリ内のMarkdownファイルから儀式の内容を読み込まなければならない（SHALL）。
 
-#### Scenario: Load ritual
-- **WHEN** ritual injection starts for a role
-- **THEN** system reads content from rituals/<role_ritual_file>
+#### Scenario: 儀式の読み込み
+- **WHEN** ある役職に対して儀式の注入が開始されたとき
+- **THEN** システムが rituals/<role_ritual_file> から内容を読み込むこと
 
-#### Scenario: Missing ritual file
-- **WHEN** ritual file does not exist
-- **THEN** system returns error with file path
+#### Scenario: 儀式ファイルが存在しない場合
+- **WHEN** 儀式ファイルが存在しないとき
+- **THEN** ファイルパス付きのエラーを返すこと
 
-### Requirement: Pane targeting via tabs
-The system SHALL navigate to the correct pane by first focusing the appropriate tab.
+### Requirement: タブ経由でのペイン特定
+システムは適切なタブにフォーカスしてから正しいペインに移動しなければならない（SHALL）。
 
-#### Scenario: Target overlord pane
-- **WHEN** injecting to Overlord
-- **THEN** system runs `zellij action go-to-tab-name overlord`
+#### Scenario: 魔王ペインへのターゲット
+- **WHEN** 魔王(Overlord)に注入するとき
+- **THEN** システムが `zellij action go-to-tab-name overlord` を実行すること
 
-#### Scenario: Target legion panes
-- **WHEN** injecting to LegionDebug
-- **THEN** system focuses legions tab, then runs `focus-next-pane` once
+#### Scenario: 兵団ペインへのターゲット
+- **WHEN** LegionDebugに注入するとき
+- **THEN** legionsタブにフォーカスし、`focus-next-pane` を1回実行すること
 
-### Requirement: Text injection via write-chars
-The system SHALL inject prompts using Zellij's write-chars action.
+### Requirement: write-charsによるテキスト注入
+システムはZellijのwrite-charsアクションを使用してプロンプトを注入しなければならない（SHALL）。
 
-#### Scenario: Write prompt text
-- **WHEN** pane is focused
-- **THEN** system runs `zellij --session <name> action write-chars <text>`
+#### Scenario: プロンプトテキストの書き込み
+- **WHEN** ペインがフォーカスされているとき
+- **THEN** システムが `zellij --session <name> action write-chars <text>` を実行すること
 
-#### Scenario: Execute prompt
-- **WHEN** text is written
-- **THEN** system sends Enter key via `zellij action write 13`
+#### Scenario: プロンプトの実行
+- **WHEN** テキストが書き込まれたとき
+- **THEN** システムが `zellij action write 13` でEnterキーを送信すること
 
-### Requirement: Injection timing
-The system SHALL include delays between operations to ensure pane readiness.
+### Requirement: 注入タイミング
+システムはペインの準備完了を待つために操作間に遅延を含めなければならない（SHALL）。
 
-#### Scenario: Pre-injection delay
-- **WHEN** about to inject prompt
-- **THEN** system waits 500ms before writing
+#### Scenario: 注入前の遅延
+- **WHEN** プロンプトを注入しようとするとき
+- **THEN** 書き込み前に500ms待機すること
 
-#### Scenario: Inter-role delay
-- **WHEN** injecting to multiple roles
-- **THEN** system waits 1 second between each role
+#### Scenario: 役職間の遅延
+- **WHEN** 複数の役職に注入するとき
+- **THEN** 各役職間で1秒待機すること
 
-### Requirement: Skip ritual option
-The system SHALL allow skipping ritual injection via --no-rituals flag.
+### Requirement: 儀式スキップオプション
+システムは --no-rituals フラグで儀式の注入をスキップできなければならない（SHALL）。
 
-#### Scenario: Skip rituals
-- **WHEN** user runs `ovld summon --no-rituals`
-- **THEN** system creates session without injecting any prompts
+#### Scenario: 儀式のスキップ
+- **WHEN** ユーザーが `ovld summon --no-rituals` を実行したとき
+- **THEN** プロンプトを注入せずにセッションを作成すること

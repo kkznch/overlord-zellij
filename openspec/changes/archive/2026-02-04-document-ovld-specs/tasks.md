@@ -1,14 +1,14 @@
-## 1. Spec Sync
+## 1. スペック同期
 
-- [ ] 1.1 Archive change to sync specs to openspec/specs/
-- [ ] 1.2 Verify all four spec directories exist in openspec/specs/
+- [ ] 1.1 変更をアーカイブしてスペックを openspec/specs/ に同期する
+- [ ] 1.2 openspec/specs/ に4つのスペックディレクトリが存在することを確認する
 
-## 2. Verification
+## 2. 検証
 
-- [x] 2.1 Run `ovld status` and verify output matches spec
-- [ ] 2.2 Run `ovld summon --no-rituals` and verify session creation
-- [ ] 2.3 Run `ovld slay --force` and verify clean termination
+- [x] 2.1 `ovld status` を実行し、出力がスペックと一致することを確認する
+- [ ] 2.2 `ovld summon --no-rituals` を実行し、セッション作成を確認する
+- [ ] 2.3 `ovld slay --force` を実行し、クリーンな終了を確認する
 
-## 3. Documentation
+## 3. ドキュメント
 
-- [x] 3.1 Update README.md with usage instructions referencing specs
+- [x] 3.1 スペックを参照した使用方法で README.md を更新する

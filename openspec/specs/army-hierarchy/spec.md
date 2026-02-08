@@ -1,57 +1,54 @@
+## Purpose
+魔王軍の階層構造と6つの役割（魔王、軍師、四天王4人）の責務・表示名・儀式ファイル対応を定義する。
+
 ## Requirements
 
-### Requirement: Six distinct roles
-The system SHALL define six roles: Overlord, Strategist, Inferno, Glacier, Shadow, Storm.
+### Requirement: 6つの役割
+システムは6つの役割を定義しなければならない (SHALL): 魔王、軍師、業火、氷結、常闇、疾風。
 
-#### Scenario: Role enumeration
-- **WHEN** system initializes
-- **THEN** all six roles are available with display names in Japanese and English
+#### Scenario: 役割の列挙
+- **WHEN** システム初期化時
+- **THEN** 6つの役割すべてが日本語・英語の表示名で利用可能であること
 
-### Requirement: Overlord role
-The Overlord (魔王) SHALL translate user wishes into technical specifications and provide final judgment on deliverables.
+### Requirement: 魔王の役割
+魔王 (Overlord) はユーザーの要望を技術仕様に変換し、成果物の最終検収を行わなければならない (SHALL)。
 
-#### Scenario: Overlord display
-- **WHEN** status command lists roles
-- **THEN** Overlord displays as "魔王 (Overlord)" with crown icon
+#### Scenario: 魔王の表示
+- **WHEN** status コマンドで役割を表示する時
+- **THEN** 魔王は「魔王 (Overlord)」と王冠アイコンで表示される
 
-### Requirement: Strategist role
-The Strategist (闇の軍師) SHALL break down Overlord commands into concrete tasks and coordinate the generals.
+### Requirement: 軍師の役割
+軍師 (Strategist) は魔王の命令を具体的なタスクに分解し、四天王を指揮しなければならない (SHALL)。
 
-#### Scenario: Strategist display
-- **WHEN** status command lists roles
-- **THEN** Strategist displays as "闘の軍師 (Strategist)" with sword icon
+#### Scenario: 軍師の表示
+- **WHEN** status コマンドで役割を表示する時
+- **THEN** 軍師は「闘の軍師 (Strategist)」と剣アイコンで表示される
 
-### Requirement: Four Generals (Shitennou)
-The system SHALL define four generals: Inferno (業火), Glacier (氷結), Shadow (常闇), Storm (疾風).
+### Requirement: 四天王
+システムは4人の将を定義しなければならない (SHALL): 業火 (Inferno)、氷結 (Glacier)、常闇 (Shadow)、疾風 (Storm)。
 
-#### Scenario: Generals display
-- **WHEN** status command lists roles
-- **THEN** Inferno displays as "業火の将 (Inferno)" with fire icon
-- **THEN** Glacier displays as "氷結の将 (Glacier)" with ice icon
-- **THEN** Shadow displays as "常闘の将 (Shadow)" with shadow icon
-- **THEN** Storm displays as "疾風の将 (Storm)" with wind icon
+#### Scenario: 四天王の表示
+- **WHEN** status コマンドで役割を表示する時
+- **THEN** 業火は「業火の将 (Inferno)」と炎アイコンで表示される
+- **THEN** 氷結は「氷結の将 (Glacier)」と氷アイコンで表示される
+- **THEN** 常闇は「常闇の将 (Shadow)」と影アイコンで表示される
+- **THEN** 疾風は「疾風の将 (Storm)」と風アイコンで表示される
 
-### Requirement: Four-layer hierarchy
-The system SHALL maintain four layers: User (深淵の意志) → Overlord (魔王) → Strategist (軍師) → Four Generals (四天王).
+### Requirement: 4層階層
+システムは4つの階層を維持しなければならない (SHALL): ユーザー (深淵の意志) → 魔王 → 軍師 → 四天王。
 
-#### Scenario: Hierarchy display
-- **WHEN** status command shows hierarchy
-- **THEN** Overlord and Strategist appear as command layer
-- **THEN** Four Generals appear as execution layer
+#### Scenario: 階層の表示
+- **WHEN** status コマンドで階層を表示する時
+- **THEN** 魔王と軍師が司令層として表示される
+- **THEN** 四天王が実行層として表示される
 
-### Requirement: Role ritual files
-Each role SHALL have a corresponding ritual file.
+### Requirement: 儀式ファイルの対応
+各役割は対応する儀式ファイルを持たなければならない (SHALL)。
 
-#### Scenario: Ritual file mapping
-- **WHEN** role is Overlord
-- **THEN** ritual file is "overlord.md"
-- **WHEN** role is Strategist
-- **THEN** ritual file is "strategist.md"
-- **WHEN** role is Inferno
-- **THEN** ritual file is "inferno.md"
-- **WHEN** role is Glacier
-- **THEN** ritual file is "glacier.md"
-- **WHEN** role is Shadow
-- **THEN** ritual file is "shadow.md"
-- **WHEN** role is Storm
-- **THEN** ritual file is "storm.md"
+#### Scenario: 儀式ファイルのマッピング
+- **WHEN** 魔王の場合 → 儀式ファイルは "overlord.md"
+- **WHEN** 軍師の場合 → 儀式ファイルは "strategist.md"
+- **WHEN** 業火の場合 → 儀式ファイルは "inferno.md"
+- **WHEN** 氷結の場合 → 儀式ファイルは "glacier.md"
+- **WHEN** 常闇の場合 → 儀式ファイルは "shadow.md"
+- **WHEN** 疾風の場合 → 儀式ファイルは "storm.md"

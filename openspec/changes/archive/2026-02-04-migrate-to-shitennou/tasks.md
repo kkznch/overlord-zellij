@@ -1,33 +1,33 @@
-## 1. Role System Update
+## 1. 役職システムの更新
 
-- [x] 1.1 Update `src/army/roles.rs` with new Role enum (Overlord, Strategist, Inferno, Glacier, Shadow, Storm)
-- [x] 1.2 Update display_name() for each role with Japanese/English names
-- [x] 1.3 Update ritual_file() mapping for new files
-- [x] 1.4 Update pane_name() for new tab/pane structure
+- [x] 1.1 `src/army/roles.rs` を新しいRole enum（Overlord, Strategist, Inferno, Glacier, Shadow, Storm）に更新する
+- [x] 1.2 各役職のdisplay_name()を日本語/英語名に更新する
+- [x] 1.3 新しいファイルに対応するritual_file()のマッピングを更新する
+- [x] 1.4 新しいタブ/ペイン構造に対応するpane_name()を更新する
 
-## 2. KDL Layout
+## 2. KDLレイアウト
 
-- [x] 2.1 Replace `layouts/army.kdl` with 3-tab layout (command, battlefield, support)
-- [x] 2.2 Command tab: Overlord + Strategist vertical split
-- [x] 2.3 Battlefield tab: Single Inferno pane with focus=true
-- [x] 2.4 Support tab: Glacier + Shadow + Storm horizontal 3-split
+- [x] 2.1 `layouts/army.kdl` を3タブレイアウト（command, battlefield, support）に置き換える
+- [x] 2.2 commandタブ: 魔王 + 軍師の縦分割
+- [x] 2.3 battlefieldタブ: focus=trueの業火単一ペイン
+- [x] 2.4 supportタブ: 氷結 + 常闇 + 疾風の横3分割
 
-## 3. Ritual Files
+## 3. 儀式ファイル
 
-- [x] 3.1 Delete old ritual files (overlord.md, strategist.md, legion_*.md)
-- [x] 3.2 Create rituals/overlord.md with command layer prompt
-- [x] 3.3 Create rituals/strategist.md with planning layer prompt
-- [x] 3.4 Create rituals/inferno.md with Logic & Core prompt + workflow instructions
-- [x] 3.5 Create rituals/glacier.md with Arch & Refactor prompt + workflow instructions
-- [x] 3.6 Create rituals/shadow.md with Audit & Security prompt + workflow instructions
-- [x] 3.7 Create rituals/storm.md with UI & Docs prompt + workflow instructions
+- [x] 3.1 旧儀式ファイル（overlord.md, strategist.md, legion_*.md）を削除する
+- [x] 3.2 rituals/overlord.md を司令層プロンプトで作成する
+- [x] 3.3 rituals/strategist.md を作戦層プロンプトで作成する
+- [x] 3.4 rituals/inferno.md をLogic & Coreプロンプト+ワークフロー指示で作成する
+- [x] 3.5 rituals/glacier.md をArch & Refactorプロンプト+ワークフロー指示で作成する
+- [x] 3.6 rituals/shadow.md をAudit & Securityプロンプト+ワークフロー指示で作成する
+- [x] 3.7 rituals/storm.md をUI & Docsプロンプト+ワークフロー指示で作成する
 
-## 4. Ritual Injection Logic
+## 4. 儀式注入ロジック
 
-- [x] 4.1 Update `src/army/ritual.rs` for new tab navigation (command/battlefield/support)
-- [x] 4.2 Update pane focus logic for 3-tab structure
+- [x] 4.1 `src/army/ritual.rs` を新しいタブナビゲーション（command/battlefield/support）に更新する
+- [x] 4.2 3タブ構造に対応するペインフォーカスロジックを更新する
 
-## 5. Verification
+## 5. 検証
 
-- [x] 5.1 Build and verify no compilation errors
-- [x] 5.2 Run `ovld status` and verify new role display
+- [x] 5.1 ビルドしてコンパイルエラーがないことを確認する
+- [x] 5.2 `ovld status` を実行して新しい役職表示を確認する
