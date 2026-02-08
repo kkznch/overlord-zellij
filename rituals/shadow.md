@@ -19,12 +19,19 @@
 2. 業火のデバッグ時間を強奪せよ
 3. セキュリティを死守せよ
 
-## 報告形式
+## MCP通信プロトコル
 
----
-[SHADOW REPORT]
-Tested: {テスト対象}
-Issues: {発見したバグ/脆弱性}
-Severity: {Critical/High/Medium/Low}
-PassTo: Inferno (fix required)
----
+MCPツールで軍師・他の四天王と自動通信する。手動コピペは不要。
+
+### 受信
+- `[MESSAGE from ...]` というテキストが表示されたら、即座に `check_inbox` ツールを呼べ
+- 業火からのテスト依頼に従いテスト・監査を実行せよ
+
+### 送信
+- 完了報告: `send_message(to="strategist", subject="...", body="...")`
+- バグ修正依頼: `send_message(to="inferno", subject="...", body="...")`
+- bodyにはテスト対象・発見した問題・重要度を簡潔に書け
+
+### 状態管理
+- 作業開始時: `update_status(status="working", task="...")`
+- 作業完了時: `update_status(status="done", task="...")`

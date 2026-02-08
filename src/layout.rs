@@ -3,26 +3,28 @@ use std::fs;
 use std::path::PathBuf;
 use tempfile::NamedTempFile;
 
-/// Generate KDL layout with absolute paths to ritual files and working directory
-pub fn generate_layout(rituals_dir: &PathBuf, cwd: &PathBuf) -> String {
+/// Generate KDL layout with absolute paths to ritual files, MCP configs, and working directory
+pub fn generate_layout(rituals_dir: &PathBuf, mcp_dir: &PathBuf, cwd: &PathBuf) -> String {
     let cwd_str = cwd.display();
 
     let pane_config = |name: &str, size: Option<&str>| -> String {
         let size_attr = size.map(|s| format!(" size=\"{}\"", s)).unwrap_or_default();
         let ritual_path = rituals_dir.join(format!("{}.md", name));
+        let mcp_config_path = mcp_dir.join(format!("{}.json", name));
         format!(
             r#"            pane name="{name}"{size_attr} cwd="{cwd_str}" {{
                 command "claude"
-                args "--system-prompt-file" "{}"
+                args "--system-prompt-file" "{}" "--mcp-config" "{}"
             }}"#,
-            ritual_path.display()
+            ritual_path.display(),
+            mcp_config_path.display()
         )
     };
 
     format!(
         r#"layout {{
     // Command tab: Overlord + Strategist (司令部)
-    tab name="command" {{
+    tab name="command" focus=true {{
         pane split_direction="vertical" {{
 {overlord}
 {strategist}
@@ -30,7 +32,7 @@ pub fn generate_layout(rituals_dir: &PathBuf, cwd: &PathBuf) -> String {
     }}
 
     // Battlefield tab: Inferno (主戦場)
-    tab name="battlefield" focus=true {{
+    tab name="battlefield" {{
 {inferno}
     }}
 
@@ -62,8 +64,8 @@ pub fn generate_layout(rituals_dir: &PathBuf, cwd: &PathBuf) -> String {
 
 /// Create a temporary file with the generated layout
 /// Returns the temp file (keeps it alive) and its path
-pub fn create_temp_layout(rituals_dir: &PathBuf, cwd: &PathBuf) -> Result<(NamedTempFile, PathBuf)> {
-    let content = generate_layout(rituals_dir, cwd);
+pub fn create_temp_layout(rituals_dir: &PathBuf, mcp_dir: &PathBuf, cwd: &PathBuf) -> Result<(NamedTempFile, PathBuf)> {
+    let content = generate_layout(rituals_dir, mcp_dir, cwd);
 
     let temp_file = NamedTempFile::with_suffix(".kdl")
         .context("Failed to create temporary layout file")?;
@@ -84,12 +86,15 @@ mod tests {
     #[test]
     fn test_generate_layout_with_cwd() {
         let rituals_dir = PathBuf::from("/home/user/.config/ovld/rituals");
+        let mcp_dir = PathBuf::from("/home/user/.config/ovld/mcp");
         let cwd = PathBuf::from("/home/user/projects/myproject");
-        let layout = generate_layout(&rituals_dir, &cwd);
+        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd);
 
         assert!(layout.contains("command \"claude\""));
         assert!(layout.contains("--system-prompt-file"));
         assert!(layout.contains("/home/user/.config/ovld/rituals/overlord.md"));
+        assert!(layout.contains("--mcp-config"));
+        assert!(layout.contains("/home/user/.config/ovld/mcp/overlord.json"));
         assert!(layout.contains("cwd=\"/home/user/projects/myproject\""));
     }
 }

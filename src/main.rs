@@ -6,6 +6,7 @@ mod commands;
 mod config;
 mod error;
 mod layout;
+mod relay;
 mod zellij;
 
 use commands::{slay, status, summon};
@@ -34,6 +35,10 @@ enum Commands {
 
     /// status - 魔王軍の状態を確認
     Status,
+
+    /// relay - MCP relay server (internal, spawned by Claude instances)
+    #[command(hide = true)]
+    Relay,
 }
 
 fn main() {
@@ -43,6 +48,10 @@ fn main() {
         Commands::Summon => summon::execute(),
         Commands::Slay { force } => slay::execute(force),
         Commands::Status => status::execute(),
+        Commands::Relay => {
+            let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+            rt.block_on(relay::serve())
+        }
     };
 
     if let Err(e) = result {

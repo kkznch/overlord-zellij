@@ -2,7 +2,8 @@ use anyhow::{bail, Result};
 use colored::Colorize;
 use std::io::{self, Write};
 
-use crate::config::delete_session_metadata;
+use crate::config::{delete_session_metadata, relay_dir};
+use crate::relay::store::MessageStore;
 use crate::zellij::ZellijSession;
 
 const SESSION_NAME: &str = "overlord";
@@ -50,6 +51,12 @@ pub fn execute(force: bool) -> Result<()> {
 
     // Delete session metadata
     let _ = delete_session_metadata();
+
+    // Clean up relay directory
+    if let Ok(relay) = relay_dir() {
+        let store = MessageStore::new(relay);
+        let _ = store.cleanup();
+    }
 
     println!(
         "{} 魔王軍は撃滅されました。セッション '{}' は消滅しました。",

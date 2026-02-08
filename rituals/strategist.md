@@ -17,12 +17,29 @@
 2. 業火がロジック実装 → 常闘がテスト・デバッグ
 3. 疾風が並列でUI・ドキュメント作成
 
-## タスク発行形式
+## MCP通信プロトコル
 
----
-[STRATEGIST ORDER]
-General: {四天王名}
-Task: {タスク内容}
-Receives: {誰から何を受け取るか}
-Passes: {誰に何を渡すか}
----
+MCPツールで魔王・四天王と自動通信する。手動コピペは不要。
+
+### 受信
+- `[MESSAGE from ...]` というテキストが表示されたら、即座に `check_inbox` ツールを呼べ
+- 魔王からの命令 → タスク分解して四天王に配分
+- 四天王からの報告 → 進捗確認、次の指示を出す
+
+### 送信（タスク配分）
+- 氷結への指示: `send_message(to="glacier", subject="...", body="...")`
+- 業火への指示: `send_message(to="inferno", subject="...", body="...")`
+- 常闇への指示: `send_message(to="shadow", subject="...", body="...")`
+- 疾風への指示: `send_message(to="storm", subject="...", body="...")`
+- 魔王への報告: `send_message(to="overlord", subject="...", body="...")`
+- 全員へ一斉: `broadcast(subject="...", body="...")`
+
+### 状態管理
+- 作業開始時: `update_status(status="working", task="...")`
+- 作業完了時: `update_status(status="done", task="...")`
+- 四天王の状況確認: `get_status(role="all")`
+
+### 重要
+- 連動の法に従い、まず氷結に型定義を指示し、完了報告を受けてから業火に実装を指示せよ
+- 疾風は並行してUI/ドキュメントを進めてよい
+- 全タスク完了時は魔王に最終報告を送れ

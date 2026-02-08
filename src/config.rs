@@ -71,6 +71,11 @@ pub fn config_dir() -> Result<PathBuf> {
     Ok(PathBuf::from(home).join(".config").join("ovld"))
 }
 
+/// Relay directory: ~/.config/ovld/relay/
+pub fn relay_dir() -> Result<PathBuf> {
+    Ok(config_dir()?.join("relay"))
+}
+
 /// Global rituals directory: ~/.config/ovld/rituals/
 pub fn global_rituals_dir() -> Result<PathBuf> {
     Ok(config_dir()?.join("rituals"))
@@ -175,6 +180,53 @@ pub fn validate_rituals_dir(rituals_dir: &PathBuf) -> Result<()> {
 /// Extract default rituals to the specified directory (public for testing)
 pub fn extract_rituals_to(rituals_dir: &PathBuf) -> Result<()> {
     extract_default_rituals(rituals_dir)
+}
+
+/// Generate per-role MCP config files in the given directory.
+/// Returns the directory path containing the generated configs.
+pub fn generate_mcp_configs(
+    mcp_dir: &PathBuf,
+    relay_dir: &PathBuf,
+    session_name: &str,
+) -> Result<()> {
+    fs::create_dir_all(mcp_dir)
+        .with_context(|| format!("Failed to create MCP config directory: {:?}", mcp_dir))?;
+
+    let ovld_path = env::current_exe()
+        .unwrap_or_else(|_| PathBuf::from("ovld"));
+
+    let roles = [
+        "overlord",
+        "strategist",
+        "inferno",
+        "glacier",
+        "shadow",
+        "storm",
+    ];
+
+    for role in roles {
+        let config = serde_json::json!({
+            "mcpServers": {
+                "ovld-relay": {
+                    "command": ovld_path.to_string_lossy(),
+                    "args": ["relay"],
+                    "env": {
+                        "OVLD_ROLE": role,
+                        "OVLD_RELAY_DIR": relay_dir.to_string_lossy(),
+                        "OVLD_SESSION": session_name,
+                    }
+                }
+            }
+        });
+
+        let config_path = mcp_dir.join(format!("{}.json", role));
+        let content = serde_json::to_string_pretty(&config)
+            .context("Failed to serialize MCP config")?;
+        fs::write(&config_path, content)
+            .with_context(|| format!("Failed to write MCP config for {}: {:?}", role, config_path))?;
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

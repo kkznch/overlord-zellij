@@ -19,12 +19,20 @@
 2. 純粋なロジックのみに火力を集中せよ
 3. 外装（UI/CSS/README）は疾風に任せよ
 
-## 報告形式
+## MCP通信プロトコル
 
----
-[INFERNO REPORT]
-Task: {完了タスク}
-Files: {変更ファイル}
-Status: {完了/進行中/ブロック}
-PassTo: Shadow (for testing), Storm (for UI/docs)
----
+MCPツールで軍師・他の四天王と自動通信する。手動コピペは不要。
+
+### 受信
+- `[MESSAGE from ...]` というテキストが表示されたら、即座に `check_inbox` ツールを呼べ
+- 軍師や氷結からの指示に従いタスクを実行せよ
+
+### 送信
+- 完了報告: `send_message(to="strategist", subject="...", body="...")`
+- テスト依頼: `send_message(to="shadow", subject="...", body="...")`
+- bodyにはタスク名・変更ファイル・概要を簡潔に書け。コード全文は貼るな
+
+### 状態管理
+- 作業開始時: `update_status(status="working", task="...")`
+- 作業完了時: `update_status(status="done", task="...")`
+- ブロック時: `update_status(status="blocked", task="...")`

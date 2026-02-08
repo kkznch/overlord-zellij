@@ -4,10 +4,11 @@ use colored::Colorize;
 use std::env;
 
 use crate::config::{
-    delete_session_metadata, ensure_default_config, load_session_metadata, resolve_rituals_dir,
-    save_session_metadata, validate_rituals_dir, SessionMetadata,
+    delete_session_metadata, ensure_default_config, generate_mcp_configs, load_session_metadata,
+    relay_dir, resolve_rituals_dir, save_session_metadata, validate_rituals_dir, SessionMetadata,
 };
 use crate::layout::create_temp_layout;
+use crate::relay::store::MessageStore;
 use crate::zellij::ZellijSession;
 
 const SESSION_NAME: &str = "overlord";
@@ -40,6 +41,15 @@ pub fn execute() -> Result<()> {
     // Validate ritual files exist
     validate_rituals_dir(&rituals_dir)?;
 
+    // Initialize relay directory structure
+    let relay = relay_dir()?;
+    let store = MessageStore::new(relay.clone());
+    store.init()?;
+
+    // Generate per-role MCP configs
+    let mcp_dir = relay.join("mcp");
+    generate_mcp_configs(&mcp_dir, &relay, SESSION_NAME)?;
+
     // Save session metadata
     save_session_metadata(&SessionMetadata {
         cwd: cwd.clone(),
@@ -57,8 +67,8 @@ pub fn execute() -> Result<()> {
         rituals_dir
     );
 
-    // Generate layout with absolute paths to ritual files and cwd
-    let (_temp_file, layout_path) = create_temp_layout(&rituals_dir, &cwd)?;
+    // Generate layout with absolute paths to ritual files, MCP configs, and cwd
+    let (_temp_file, layout_path) = create_temp_layout(&rituals_dir, &mcp_dir, &cwd)?;
 
     // Start the session - this blocks until Zellij exits
     let result = session.start(layout_path.to_str().unwrap());
