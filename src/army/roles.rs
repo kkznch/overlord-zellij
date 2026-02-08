@@ -11,36 +11,6 @@ pub enum Role {
 }
 
 impl Role {
-    pub fn pane_name(&self) -> &'static str {
-        match self {
-            Role::Overlord => "overlord",
-            Role::Strategist => "strategist",
-            Role::Inferno => "inferno",
-            Role::Glacier => "glacier",
-            Role::Shadow => "shadow",
-            Role::Storm => "storm",
-        }
-    }
-
-    pub fn tab_name(&self) -> &'static str {
-        match self {
-            Role::Overlord | Role::Strategist => "command",
-            Role::Inferno => "battlefield",
-            Role::Glacier | Role::Shadow | Role::Storm => "support",
-        }
-    }
-
-    pub fn ritual_file(&self) -> &'static str {
-        match self {
-            Role::Overlord => "overlord.md",
-            Role::Strategist => "strategist.md",
-            Role::Inferno => "inferno.md",
-            Role::Glacier => "glacier.md",
-            Role::Shadow => "shadow.md",
-            Role::Storm => "storm.md",
-        }
-    }
-
     pub fn display_name(&self) -> &'static str {
         match self {
             Role::Overlord => "魔王 (Overlord)",

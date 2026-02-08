@@ -64,27 +64,4 @@ impl ZellijSession {
         Ok(sessions.lines().any(|line| line.contains(&self.name)))
     }
 
-    /// Attach to existing session
-    pub fn attach(&self) -> Result<()> {
-        Command::new("zellij")
-            .args(["attach", &self.name])
-            .status()
-            .context("Failed to attach to Zellij session")?;
-        Ok(())
-    }
-
-    /// List all sessions
-    pub fn list_sessions() -> Result<Vec<String>> {
-        let output = Command::new("zellij")
-            .args(["list-sessions"])
-            .output()
-            .context("Failed to list Zellij sessions")?;
-
-        let sessions = String::from_utf8_lossy(&output.stdout);
-        Ok(sessions
-            .lines()
-            .filter(|line| !line.is_empty())
-            .map(|s| s.to_string())
-            .collect())
-    }
 }

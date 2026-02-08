@@ -4,7 +4,6 @@ use colored::Colorize;
 mod army;
 mod commands;
 mod config;
-mod error;
 mod layout;
 mod relay;
 mod zellij;

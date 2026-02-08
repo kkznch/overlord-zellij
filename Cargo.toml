@@ -14,14 +14,10 @@ path = "src/main.rs"
 clap = { version = "4.5", features = ["derive"] }
 
 # Error Handling
-thiserror = "1.0"
 anyhow = "1.0"
 
 # Colored output
 colored = "2.1"
-
-# File path handling
-dirs = "5.0"
 
 # Temp file handling
 tempfile = "3.10"
