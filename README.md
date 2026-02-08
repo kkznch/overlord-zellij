@@ -103,8 +103,8 @@ ovld summon
 # Check army status
 ovld status
 
-# Slay the Demon Army
-ovld slay
+# Unsummon the Demon Army
+ovld unsummon
 ```
 
 ### Options
@@ -116,8 +116,8 @@ ovld summon --session myarmy
 # Skip ritual injection (starts bash instead of Claude)
 ovld summon --no-rituals
 
-# Force kill without confirmation
-ovld slay --force
+# Force unsummon without confirmation
+ovld unsummon --force
 ```
 
 ## How It Works
@@ -157,7 +157,7 @@ overlord-zellij/
 │   ├── main.rs           # CLI entry point
 │   ├── config.rs         # Config & ritual resolution
 │   ├── layout.rs         # Dynamic KDL generation
-│   ├── commands/         # summon/slay/status commands
+│   ├── commands/         # summon/unsummon/status commands
 │   ├── zellij/           # Zellij session management
 │   └── army/             # Role definitions
 ├── layouts/

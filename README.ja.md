@@ -101,8 +101,8 @@ ovld summon
 # 軍勢の状況確認
 ovld status
 
-# 魔王軍を殲滅
-ovld slay
+# 魔王軍を還送
+ovld unsummon
 ```
 
 ### オプション
@@ -117,8 +117,8 @@ ovld summon --layout minimal
 # 儀式（プロンプト注入）をスキップ
 ovld summon --no-rituals
 
-# 確認なしで終了
-ovld slay --force
+# 確認なしで還送
+ovld unsummon --force
 ```
 
 ## 動作の仕組み
@@ -152,7 +152,7 @@ ovld slay --force
 overlord-zellij/
 ├── src/
 │   ├── main.rs           # CLIエントリーポイント
-│   ├── commands/         # summon/slay/status コマンド
+│   ├── commands/         # summon/unsummon/status コマンド
 │   ├── zellij/           # Zellijセッション・ペイン操作
 │   └── army/             # 役職定義・儀式注入
 ├── layouts/

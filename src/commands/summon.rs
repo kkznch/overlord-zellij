@@ -21,12 +21,12 @@ pub fn execute() -> Result<()> {
     if session.exists()? {
         if let Some(meta) = load_session_metadata()? {
             bail!(
-                "既に {:?} で召喚されています。\n`ovld slay` で撃滅してから再召喚してください。",
+                "既に {:?} で召喚されています。\n`ovld unsummon` で還送してから再召喚してください。",
                 meta.cwd
             );
         } else {
             bail!(
-                "既存セッション '{}' があります。\n`ovld slay` で撃滅してから再召喚してください。",
+                "既存セッション '{}' があります。\n`ovld unsummon` で還送してから再召喚してください。",
                 SESSION_NAME
             );
         }

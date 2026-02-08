@@ -1,5 +1,5 @@
 ## Purpose
-ovld CLIツールのサブコマンド（summon, slay, status, relay）とオプション（--session, --layout）を定義する。
+ovld CLIツールのサブコマンド（summon, unsummon, status, relay）とオプション（--session, --layout）を定義する。
 
 ## Requirements
 
@@ -14,19 +14,19 @@ ovld CLIツールのサブコマンド（summon, slay, status, relay）とオプ
 - **WHEN** ユーザーが `ovld summon` を実行し、セッション "overlord" が既に存在する時
 - **THEN** 新規作成ではなく既存セッションにアタッチする
 
-### Requirement: slay コマンドでセッション終了
-`slay` サブコマンドで魔王軍セッションを終了し、プロセスをクリーンアップしなければならない (SHALL)。
+### Requirement: unsummon コマンドでセッション終了
+`unsummon` サブコマンドで魔王軍セッションを終了（還送）し、プロセスをクリーンアップしなければならない (SHALL)。
 
-#### Scenario: 確認付きセッション終了
-- **WHEN** ユーザーが `ovld slay` を実行した時
-- **THEN** 終了前に確認プロンプトが表示される
+#### Scenario: 確認付きセッション還送
+- **WHEN** ユーザーが `ovld unsummon` を実行した時
+- **THEN** 還送前に確認プロンプトが表示される
 
-#### Scenario: 強制終了
-- **WHEN** ユーザーが `ovld slay --force` を実行した時
-- **THEN** 確認なしでセッションが終了される
+#### Scenario: 強制還送
+- **WHEN** ユーザーが `ovld unsummon --force` を実行した時
+- **THEN** 確認なしでセッションが還送される
 
 #### Scenario: セッション未検出
-- **WHEN** ユーザーが `ovld slay` を実行し、セッションが存在しない時
+- **WHEN** ユーザーが `ovld unsummon` を実行し、セッションが存在しない時
 - **THEN** "セッション 'overlord' が見つかりません" というエラーが表示される
 
 ### Requirement: status コマンドで魔王軍の状態表示

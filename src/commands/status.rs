@@ -77,9 +77,9 @@ pub fn execute() -> Result<()> {
 
     println!();
     println!(
-        "{} '{}' でセッションを撃滅できます。",
+        "{} '{}' でセッションを還送できます。",
         "ヒント:".yellow(),
-        "ovld slay".cyan()
+        "ovld unsummon".cyan()
     );
 
     Ok(())

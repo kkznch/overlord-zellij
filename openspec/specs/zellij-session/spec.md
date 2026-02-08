@@ -25,11 +25,11 @@ Zellij セッションの作成・管理・レイアウト構造（3タブ6ペ�
 セッションの kill と任意の削除で終了処理を行わなければならない (SHALL)。
 
 #### Scenario: セッション kill
-- **WHEN** slay コマンドが実行された時
+- **WHEN** unsummon コマンドが実行された時
 - **THEN** `zellij kill-session <name>` が実行される
 
 #### Scenario: セッションデータ削除
-- **WHEN** slay コマンドが完了した時
+- **WHEN** unsummon コマンドが完了した時
 - **THEN** `zellij delete-session <name> --force` でクリーンアップが実行される
 
 ### Requirement: セッションアタッチ
@@ -86,9 +86,9 @@ summon コマンドはセッション開始前に relay ディレクトリ構造
 - **THEN** `~/.config/ovld/relay/` に relay ディレクトリ構造が作成される
 - **THEN** `~/.config/ovld/relay/mcp/{role}.json` に各役割用の MCP 設定 JSON が生成される
 
-### Requirement: slay 時の relay クリーンアップ
-slay コマンドはセッション終了時に relay ディレクトリをクリーンアップしなければならない (SHALL)。
+### Requirement: unsummon 時の relay クリーンアップ
+unsummon コマンドはセッション終了時に relay ディレクトリをクリーンアップしなければならない (SHALL)。
 
 #### Scenario: relay クリーンアップ
-- **WHEN** slay コマンドが実行された時
+- **WHEN** unsummon コマンドが実行された時
 - **THEN** relay メッセージストアのクリーンアップが呼ばれる

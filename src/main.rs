@@ -8,7 +8,7 @@ mod layout;
 mod relay;
 mod zellij;
 
-use commands::{slay, status, summon};
+use commands::{status, summon, unsummon};
 
 #[derive(Parser)]
 #[command(name = "ovld")]
@@ -25,9 +25,9 @@ enum Commands {
     /// summon - 魔王軍を召喚（カレントディレクトリで展開）
     Summon,
 
-    /// slay - 魔王軍を撃滅（セッション終了）
-    Slay {
-        /// 確認なしで強制撃滅
+    /// unsummon - 魔王軍を還送（セッション終了）
+    Unsummon {
+        /// 確認なしで強制還送
         #[arg(short, long)]
         force: bool,
     },
@@ -45,7 +45,7 @@ fn main() {
 
     let result = match cli.command {
         Commands::Summon => summon::execute(),
-        Commands::Slay { force } => slay::execute(force),
+        Commands::Unsummon { force } => unsummon::execute(force),
         Commands::Status => status::execute(),
         Commands::Relay => {
             let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");

@@ -13,13 +13,13 @@ pub fn execute(force: bool) -> Result<()> {
 
     // Check if session exists
     if !session.exists()? {
-        bail!("セッション '{}' が見つかりません。撃滅対象なし。", SESSION_NAME);
+        bail!("セッション '{}' が見つかりません。還送対象なし。", SESSION_NAME);
     }
 
     // Confirm unless force flag is set
     if !force {
         print!(
-            "{} セッション '{}' を撃滅しますか？ [y/N] ",
+            "{} セッション '{}' を還送しますか？ [y/N] ",
             "Warning:".yellow().bold(),
             SESSION_NAME
         );
@@ -38,7 +38,7 @@ pub fn execute(force: bool) -> Result<()> {
     }
 
     println!(
-        "{} セッション '{}' を撃滅中...",
+        "{} セッション '{}' を還送中...",
         "Overlord:".red().bold(),
         SESSION_NAME
     );
@@ -59,7 +59,7 @@ pub fn execute(force: bool) -> Result<()> {
     }
 
     println!(
-        "{} 魔王軍は撃滅されました。セッション '{}' は消滅しました。",
+        "{} 魔王軍を還送しました。セッション '{}' を終了しました。",
         "Success:".green().bold(),
         SESSION_NAME
     );
