@@ -8,7 +8,7 @@ mod layout;
 mod relay;
 mod zellij;
 
-use commands::{status, summon, unsummon};
+use commands::{init, status, summon, unsummon};
 
 #[derive(Parser)]
 #[command(name = "ovld")]
@@ -35,6 +35,13 @@ enum Commands {
     /// status - 魔王軍の状態を確認
     Status,
 
+    /// init - グローバル設定を（再）展開
+    Init {
+        /// 既存ファイルを強制上書き
+        #[arg(short, long)]
+        force: bool,
+    },
+
     /// relay - MCP relay server (internal, spawned by Claude instances)
     #[command(hide = true)]
     Relay,
@@ -47,6 +54,7 @@ fn main() {
         Commands::Summon => summon::execute(),
         Commands::Unsummon { force } => unsummon::execute(force),
         Commands::Status => status::execute(),
+        Commands::Init { force } => init::execute(force),
         Commands::Relay => {
             let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
             rt.block_on(relay::serve())
