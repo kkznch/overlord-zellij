@@ -2,26 +2,31 @@ use anyhow::{bail, Result};
 use colored::Colorize;
 use std::io::{self, Write};
 
-use crate::config::{delete_session_metadata, relay_dir};
+use crate::config::{delete_session_metadata, relay_dir, AppConfig};
+use crate::i18n;
 use crate::relay::store::MessageStore;
 use crate::zellij::ZellijSession;
 
 const SESSION_NAME: &str = "overlord";
 
-pub fn execute(force: bool) -> Result<()> {
+pub fn execute(force: bool, config: &AppConfig) -> Result<()> {
+    let lang = config.lang;
     let session = ZellijSession::new(SESSION_NAME);
 
     // Check if session exists
     if !session.exists()? {
-        bail!("セッション '{}' が見つかりません。還送対象なし。", SESSION_NAME);
+        bail!(
+            "{}",
+            i18n::tf("unsummon.not_found", lang, &[("name", SESSION_NAME)])
+        );
     }
 
     // Confirm unless force flag is set
     if !force {
         print!(
-            "{} セッション '{}' を還送しますか？ [y/N] ",
+            "{} {}",
             "Warning:".yellow().bold(),
-            SESSION_NAME
+            i18n::tf("unsummon.confirm", lang, &[("name", SESSION_NAME)])
         );
         io::stdout().flush()?;
 
@@ -30,17 +35,18 @@ pub fn execute(force: bool) -> Result<()> {
 
         if !input.trim().eq_ignore_ascii_case("y") {
             println!(
-                "{} 中止しました。魔王軍は健在です。",
-                "Info:".cyan().bold()
+                "{} {}",
+                "Info:".cyan().bold(),
+                i18n::t("unsummon.cancelled", lang)
             );
             return Ok(());
         }
     }
 
     println!(
-        "{} セッション '{}' を還送中...",
+        "{} {}",
         "Overlord:".red().bold(),
-        SESSION_NAME
+        i18n::tf("unsummon.in_progress", lang, &[("name", SESSION_NAME)])
     );
 
     // Kill the session
@@ -59,9 +65,9 @@ pub fn execute(force: bool) -> Result<()> {
     }
 
     println!(
-        "{} 魔王軍を還送しました。セッション '{}' を終了しました。",
+        "{} {}",
         "Success:".green().bold(),
-        SESSION_NAME
+        i18n::tf("unsummon.success", lang, &[("name", SESSION_NAME)])
     );
 
     Ok(())

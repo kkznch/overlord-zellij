@@ -1,31 +1,36 @@
 use anyhow::Result;
 use colored::Colorize;
 
-use crate::config::{config_dir, extract_rituals_to};
+use crate::config::{config_dir, extract_rituals_to, save_default_config, AppConfig};
+use crate::i18n;
 
-pub fn execute(force: bool) -> Result<()> {
-    let rituals_dir = config_dir()?.join("rituals");
+pub fn execute(force: bool, config: &AppConfig) -> Result<()> {
+    let lang = config.lang;
+    let config = config_dir()?;
+    let rituals_dir = config.join("rituals");
 
     if rituals_dir.exists() && !force {
         println!(
-            "{} グローバル設定は既に展開済みです: {:?}",
+            "{} {}",
             "Info:".cyan().bold(),
-            rituals_dir
+            i18n::tf("init.already_exists", lang, &[("path", &i18n::path_str(&rituals_dir))])
         );
         println!(
-            "{} 上書きするには `ovld init --force` を使用してください。",
-            "ヒント:".yellow()
+            "{} {}",
+            "Hint:".yellow(),
+            i18n::t("init.hint_force", lang)
         );
         return Ok(());
     }
 
     std::fs::create_dir_all(&rituals_dir)?;
     extract_rituals_to(&rituals_dir)?;
+    save_default_config(&config)?;
 
     println!(
-        "{} グローバル設定を展開しました: {:?}",
+        "{} {}",
         "Success:".green().bold(),
-        rituals_dir
+        i18n::tf("init.success", lang, &[("path", &i18n::path_str(&rituals_dir))])
     );
 
     Ok(())

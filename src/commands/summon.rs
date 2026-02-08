@@ -7,13 +7,16 @@ use crate::config::{
     delete_session_metadata, ensure_default_config, generate_mcp_configs, load_session_metadata,
     relay_dir, resolve_rituals_dir, save_session_metadata, validate_rituals_dir, SessionMetadata,
 };
+use crate::config::AppConfig;
+use crate::i18n;
 use crate::layout::create_temp_layout;
 use crate::relay::store::MessageStore;
 use crate::zellij::ZellijSession;
 
 const SESSION_NAME: &str = "overlord";
 
-pub fn execute() -> Result<()> {
+pub fn execute(config: &AppConfig) -> Result<()> {
+    let lang = config.lang;
     let session = ZellijSession::new(SESSION_NAME);
     let cwd = env::current_dir()?;
 
@@ -21,13 +24,13 @@ pub fn execute() -> Result<()> {
     if session.exists()? {
         if let Some(meta) = load_session_metadata()? {
             bail!(
-                "既に {:?} で召喚されています。\n`ovld unsummon` で還送してから再召喚してください。",
-                meta.cwd
+                "{}",
+                i18n::tf("summon.already_exists_with_cwd", lang, &[("cwd", &i18n::path_str(&meta.cwd))])
             );
         } else {
             bail!(
-                "既存セッション '{}' があります。\n`ovld unsummon` で還送してから再召喚してください。",
-                SESSION_NAME
+                "{}",
+                i18n::tf("summon.already_exists", lang, &[("name", SESSION_NAME)])
             );
         }
     }
@@ -57,14 +60,14 @@ pub fn execute() -> Result<()> {
     })?;
 
     println!(
-        "{} {:?} で魔王軍を召喚中...",
+        "{} {}",
         "Overlord:".red().bold(),
-        cwd
+        i18n::tf("summon.starting", lang, &[("cwd", &i18n::path_str(&cwd))])
     );
     println!(
-        "{} 儀式ファイル: {:?}",
+        "{} {}",
         "Info:".cyan().bold(),
-        rituals_dir
+        i18n::tf("summon.ritual_files", lang, &[("path", &i18n::path_str(&rituals_dir))])
     );
 
     // Generate layout with absolute paths to ritual files, MCP configs, and cwd
@@ -77,7 +80,6 @@ pub fn execute() -> Result<()> {
     let _ = delete_session_metadata();
 
     // Clean up EXITED session if it still exists (best-effort)
-    // Note: detach leaves session alive, exit leaves it EXITED — only clean up EXITED
     if session.exists().unwrap_or(false) {
         let _ = session.kill();
         let _ = session.delete(true);
@@ -91,9 +93,9 @@ pub fn execute() -> Result<()> {
     result?;
 
     println!(
-        "{} セッション '{}' が終了しました。",
+        "{} {}",
         "Info:".cyan().bold(),
-        SESSION_NAME
+        i18n::tf("summon.session_ended", lang, &[("name", SESSION_NAME)])
     );
 
     Ok(())

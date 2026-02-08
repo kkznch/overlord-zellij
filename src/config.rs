@@ -5,6 +5,45 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::i18n::Lang;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppConfig {
+    #[serde(default)]
+    pub lang: Lang,
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self { lang: Lang::En }
+    }
+}
+
+/// Load config from ~/.config/ovld/config.toml, falling back to defaults.
+pub fn load_config() -> AppConfig {
+    let Ok(dir) = config_dir() else {
+        return AppConfig::default();
+    };
+    let path = dir.join("config.toml");
+    if !path.exists() {
+        return AppConfig::default();
+    }
+    let Ok(content) = fs::read_to_string(&path) else {
+        return AppConfig::default();
+    };
+    toml::from_str(&content).unwrap_or_default()
+}
+
+/// Save default config.toml to the specified directory.
+pub fn save_default_config(dir: &Path) -> Result<()> {
+    let config = AppConfig::default();
+    let content = toml::to_string_pretty(&config).context("Failed to serialize config")?;
+    let path = dir.join("config.toml");
+    fs::write(&path, content)
+        .with_context(|| format!("Failed to write config to {:?}", path))?;
+    Ok(())
+}
+
 const RITUAL_FILES: [(&str, &str); 6] = [
     ("overlord.md", include_str!("../rituals/overlord.md")),
     ("strategist.md", include_str!("../rituals/strategist.md")),

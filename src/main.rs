@@ -4,6 +4,7 @@ use colored::Colorize;
 mod army;
 mod commands;
 mod config;
+mod i18n;
 mod layout;
 mod relay;
 mod zellij;
@@ -50,11 +51,13 @@ enum Commands {
 fn main() {
     let cli = Cli::parse();
 
+    let config = config::load_config();
+
     let result = match cli.command {
-        Commands::Summon => summon::execute(),
-        Commands::Unsummon { force } => unsummon::execute(force),
-        Commands::Status => status::execute(),
-        Commands::Init { force } => init::execute(force),
+        Commands::Summon => summon::execute(&config),
+        Commands::Unsummon { force } => unsummon::execute(force, &config),
+        Commands::Status => status::execute(&config),
+        Commands::Init { force } => init::execute(force, &config),
         Commands::Relay => {
             let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
             rt.block_on(relay::serve())
