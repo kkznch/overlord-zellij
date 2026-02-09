@@ -14,7 +14,7 @@ pub fn generate_layout(rituals_dir: &PathBuf, mcp_dir: &PathBuf, cwd: &PathBuf) 
         format!(
             r#"            pane name="{name}"{size_attr} cwd="{cwd_str}" {{
                 command "claude"
-                args "--system-prompt-file" "{}" "--mcp-config" "{}"
+                args "--system-prompt-file" "{}" "--mcp-config" "{}" "--setting-sources" "project,local"
             }}"#,
             ritual_path.display(),
             mcp_config_path.display()
@@ -96,5 +96,6 @@ mod tests {
         assert!(layout.contains("--mcp-config"));
         assert!(layout.contains("/home/user/.config/ovld/mcp/overlord.json"));
         assert!(layout.contains("cwd=\"/home/user/projects/myproject\""));
+        assert!(layout.contains("\"--setting-sources\" \"project,local\""));
     }
 }
