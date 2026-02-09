@@ -44,6 +44,8 @@ pub fn save_default_config(dir: &Path) -> Result<()> {
     Ok(())
 }
 
+const PLUGIN_WASM: &[u8] = include_bytes!("../target/plugin/ovld-notify-plugin.wasm");
+
 const RITUAL_FILES: [(&str, &str); 6] = [
     ("overlord.md", include_str!("../rituals/overlord.md")),
     ("strategist.md", include_str!("../rituals/strategist.md")),
@@ -150,7 +152,22 @@ pub fn validate_rituals_dir(dir: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn generate_mcp_configs(mcp_dir: &Path, relay_dir: &Path, session_name: &str) -> Result<()> {
+pub fn plugin_dir() -> Result<PathBuf> {
+    Ok(config_dir()?.join("plugins"))
+}
+
+/// Extract the embedded notify plugin WASM to ~/.config/ovld/plugins/
+pub fn extract_plugin() -> Result<PathBuf> {
+    let dir = plugin_dir()?;
+    fs::create_dir_all(&dir)
+        .with_context(|| format!("Failed to create plugin directory: {:?}", dir))?;
+    let path = dir.join("ovld-notify-plugin.wasm");
+    fs::write(&path, PLUGIN_WASM)
+        .with_context(|| format!("Failed to write plugin WASM to {:?}", path))?;
+    Ok(path)
+}
+
+pub fn generate_mcp_configs(mcp_dir: &Path, relay_dir: &Path, session_name: &str, plugin_path: &Path) -> Result<()> {
     fs::create_dir_all(mcp_dir)
         .with_context(|| format!("Failed to create MCP config directory: {:?}", mcp_dir))?;
 
@@ -167,6 +184,7 @@ pub fn generate_mcp_configs(mcp_dir: &Path, relay_dir: &Path, session_name: &str
                         "OVLD_ROLE": role,
                         "OVLD_RELAY_DIR": relay_dir.to_string_lossy(),
                         "OVLD_SESSION": session_name,
+                        "OVLD_PLUGIN_PATH": plugin_path.to_string_lossy(),
                     }
                 }
             }

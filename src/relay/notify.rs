@@ -1,87 +1,108 @@
-use anyhow::{Context, Result};
-use std::process::Command;
-use std::thread;
-use std::time::Duration;
+use anyhow::{bail, Context, Result};
+use std::process::{Command, Stdio};
 
-/// Pane targeting information derived from the layout structure
-struct PaneTarget {
-    tab: &'static str,
-    /// Navigation steps after switching to the tab to focus the correct pane.
-    /// Empty means the only pane in the tab (no navigation needed).
-    focus_steps: &'static [&'static str],
-}
-
-/// Map role name to its tab and pane position in the layout
-fn pane_target(role: &str) -> Option<PaneTarget> {
+/// Map role name to its terminal pane ID in the layout.
+/// Zellij assigns terminal pane IDs sequentially in layout order.
+fn pane_id(role: &str) -> Option<u32> {
     match role {
-        "overlord" => Some(PaneTarget {
-            tab: "command",
-            focus_steps: &["left"],
-        }),
-        "strategist" => Some(PaneTarget {
-            tab: "command",
-            focus_steps: &["right"],
-        }),
-        "inferno" => Some(PaneTarget {
-            tab: "battlefield",
-            focus_steps: &[],
-        }),
-        "glacier" => Some(PaneTarget {
-            tab: "support",
-            focus_steps: &["up", "up"], // go to top
-        }),
-        "shadow" => Some(PaneTarget {
-            tab: "support",
-            focus_steps: &["up", "up", "down"], // top then one down
-        }),
-        "storm" => Some(PaneTarget {
-            tab: "support",
-            focus_steps: &["down", "down"], // go to bottom
-        }),
+        "overlord" => Some(0),
+        "strategist" => Some(1),
+        "inferno" => Some(2),
+        "glacier" => Some(3),
+        "shadow" => Some(4),
+        "storm" => Some(5),
         _ => None,
     }
 }
 
-/// Inject a notification message into a target pane via zellij write-chars.
-///
-/// This simulates keyboard input in the target pane, causing the Claude instance
-/// to process it as a user message.
-pub fn notify_pane(session: &str, target_role: &str, from_role: &str) -> Result<()> {
-    let target = pane_target(target_role)
-        .with_context(|| format!("Unknown target role: {}", target_role))?;
-
-    // Switch to the target tab
-    zellij_action(session, &["go-to-tab-name", target.tab])?;
-
-    // Navigate to the correct pane within the tab
-    for direction in target.focus_steps {
-        zellij_action(session, &["move-focus", direction])?;
-    }
-
-    // Inject the trigger text
+/// Build the JSON payload for the notify plugin.
+fn build_payload(pane_id: u32, from_role: &str) -> String {
     let notification = format!(
         "[MESSAGE from {}] check_inbox ツールで受信メッセージを確認して作業を開始してください。",
         from_role
     );
-    zellij_action(session, &["write-chars", &notification])?;
+    format!(
+        r#"{{"pane_id":{},"text":"{}","send_enter":true}}"#,
+        pane_id,
+        notification.replace('\\', "\\\\").replace('"', "\\\"")
+    )
+}
 
-    // Small delay to ensure text is fully written before sending Enter
-    thread::sleep(Duration::from_millis(200));
+/// Send a notification to a target pane via the Zellij notify plugin.
+///
+/// Uses `zellij pipe` to send a JSON payload to the plugin,
+/// which writes directly to the target pane's STDIN without switching focus.
+/// Session targeting is done via ZELLIJ_SESSION_NAME env var.
+pub fn notify_pane(session: &str, target_role: &str, from_role: &str, plugin_path: &str) -> Result<()> {
+    let id = pane_id(target_role)
+        .with_context(|| format!("Unknown target role: {}", target_role))?;
 
-    // Send Enter key via write-chars with a literal carriage return
-    zellij_action(session, &["write-chars", "\r"])?;
+    let payload = build_payload(id, from_role);
+
+    let status = Command::new("zellij")
+        .stdin(Stdio::null())
+        .env("ZELLIJ_SESSION_NAME", session)
+        .args([
+            "pipe",
+            "--plugin", &format!("file:{}", plugin_path),
+            "--name", "send_keys",
+            "--", &payload,
+        ])
+        .status()
+        .with_context(|| format!("Failed to execute zellij pipe for {}", target_role))?;
+
+    if !status.success() {
+        bail!(
+            "zellij pipe failed for {} (exit code: {:?})",
+            target_role,
+            status.code()
+        );
+    }
 
     Ok(())
 }
 
-fn zellij_action(session: &str, args: &[&str]) -> Result<()> {
-    let mut cmd_args = vec!["--session", session, "action"];
-    cmd_args.extend_from_slice(args);
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    Command::new("zellij")
-        .args(&cmd_args)
-        .status()
-        .with_context(|| format!("Failed to run zellij action: {:?}", args))?;
+    #[test]
+    fn test_pane_id_valid_roles() {
+        assert_eq!(pane_id("overlord"), Some(0));
+        assert_eq!(pane_id("strategist"), Some(1));
+        assert_eq!(pane_id("inferno"), Some(2));
+        assert_eq!(pane_id("glacier"), Some(3));
+        assert_eq!(pane_id("shadow"), Some(4));
+        assert_eq!(pane_id("storm"), Some(5));
+    }
 
-    Ok(())
+    #[test]
+    fn test_pane_id_invalid_role() {
+        assert_eq!(pane_id("unknown"), None);
+        assert_eq!(pane_id(""), None);
+    }
+
+    #[test]
+    fn test_build_payload_is_valid_json() {
+        let payload = build_payload(2, "strategist");
+        let parsed: serde_json::Value = serde_json::from_str(&payload).unwrap();
+        assert_eq!(parsed["pane_id"], 2);
+        assert_eq!(parsed["send_enter"], true);
+        assert!(parsed["text"].as_str().unwrap().contains("[MESSAGE from strategist]"));
+    }
+
+    #[test]
+    fn test_build_payload_escapes_quotes() {
+        // from_role に引用符が入っても壊れないことを確認
+        let payload = build_payload(0, r#"test"role"#);
+        let parsed: serde_json::Value = serde_json::from_str(&payload).unwrap();
+        assert!(parsed["text"].as_str().unwrap().contains(r#"test"role"#));
+    }
+
+    #[test]
+    fn test_notify_pane_rejects_invalid_role() {
+        let result = notify_pane("test", "invalid_role", "overlord", "/tmp/fake.wasm");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Unknown target role"));
+    }
 }

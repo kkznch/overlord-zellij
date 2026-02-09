@@ -4,8 +4,9 @@ use colored::Colorize;
 use std::env;
 
 use crate::config::{
-    delete_session_metadata, ensure_default_config, generate_mcp_configs, load_session_metadata,
-    relay_dir, resolve_rituals_dir, save_session_metadata, validate_rituals_dir, SessionMetadata,
+    delete_session_metadata, ensure_default_config, extract_plugin, generate_mcp_configs,
+    load_session_metadata, relay_dir, resolve_rituals_dir, save_session_metadata,
+    validate_rituals_dir, SessionMetadata,
 };
 use crate::config::AppConfig;
 use crate::i18n;
@@ -49,9 +50,12 @@ pub fn execute(config: &AppConfig) -> Result<()> {
     let store = MessageStore::new(relay.clone());
     store.init()?;
 
+    // Extract notify plugin WASM
+    let plugin_path = extract_plugin()?;
+
     // Generate per-role MCP configs
     let mcp_dir = relay.join("mcp");
-    generate_mcp_configs(&mcp_dir, &relay, SESSION_NAME)?;
+    generate_mcp_configs(&mcp_dir, &relay, SESSION_NAME, &plugin_path)?;
 
     // Save session metadata
     save_session_metadata(&SessionMetadata {

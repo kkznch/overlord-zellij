@@ -66,6 +66,7 @@ pub struct RelayService {
     role: String,
     store: Arc<MessageStore>,
     session_name: String,
+    plugin_path: String,
     tool_router: ToolRouter<Self>,
 }
 
@@ -91,11 +92,12 @@ fn parse_status(s: &str) -> Result<Status, McpError> {
 
 #[tool_router]
 impl RelayService {
-    pub fn new(role: String, store: Arc<MessageStore>, session_name: String) -> Self {
+    pub fn new(role: String, store: Arc<MessageStore>, session_name: String, plugin_path: String) -> Self {
         Self {
             role,
             store,
             session_name,
+            plugin_path,
             tool_router: Self::tool_router(),
         }
     }
@@ -134,7 +136,7 @@ impl RelayService {
             })?;
 
         if should_notify {
-            if let Err(e) = notify::notify_pane(&self.session_name, &req.to, &self.role) {
+            if let Err(e) = notify::notify_pane(&self.session_name, &req.to, &self.role, &self.plugin_path) {
                 return Ok(CallToolResult::success(vec![Content::text(format!(
                     "Message sent to {} (auto-notification failed: {}). Target should check_inbox manually.",
                     req.to, e
@@ -276,7 +278,7 @@ impl RelayService {
             })?;
 
             if should_notify {
-                let _ = notify::notify_pane(&self.session_name, role, &self.role);
+                let _ = notify::notify_pane(&self.session_name, role, &self.role, &self.plugin_path);
             }
             sent_to.push(*role);
         }
@@ -325,9 +327,12 @@ pub async fn serve() -> anyhow::Result<()> {
 
     let session_name = env::var("OVLD_SESSION").unwrap_or_else(|_| SESSION_NAME.to_string());
 
+    let plugin_path = env::var("OVLD_PLUGIN_PATH")
+        .unwrap_or_else(|_| String::new());
+
     let store = Arc::new(MessageStore::new(relay_dir));
 
-    let service = RelayService::new(role, store, session_name);
+    let service = RelayService::new(role, store, session_name, plugin_path);
 
     let server = service
         .serve(rmcp::transport::stdio())
