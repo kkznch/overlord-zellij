@@ -1,5 +1,5 @@
 ## Purpose
-ovld CLIツールのサブコマンド（summon, unsummon, status, init, relay）とオプション（--session, --layout）を定義する。
+ovld CLIツールのサブコマンド（summon, unsummon, status, init, relay）を定義する。
 
 ## Requirements
 
@@ -40,20 +40,6 @@ ovld CLIツールのサブコマンド（summon, unsummon, status, init, relay�
 #### Scenario: セッションなし
 - **WHEN** ユーザーが `ovld status` を実行し、セッションが存在しない時
 - **THEN** ステータスと summon コマンドのヒントが設定された言語で表示される
-
-### Requirement: カスタムセッション名
-`--session` フラグでカスタムセッション名を指定できなければならない (SHALL)。
-
-#### Scenario: カスタムセッション名
-- **WHEN** ユーザーが `ovld summon --session myarmy` を実行した時
-- **THEN** "myarmy" という名前のセッションが作成される
-
-### Requirement: カスタムレイアウト
-`--layout` フラグでカスタムレイアウトを指定できなければならない (SHALL)。
-
-#### Scenario: カスタムレイアウトファイル
-- **WHEN** ユーザーが `ovld summon --layout minimal` を実行した時
-- **THEN** layouts/minimal.kdl がセッションに使用される
 
 ### Requirement: init コマンドでグローバル設定を展開
 `init` サブコマンドでグローバル設定ディレクトリにデフォルト儀式ファイルを展開しなければならない (SHALL)。出力メッセージは i18n モジュール経由で言語設定に従って表示する。
