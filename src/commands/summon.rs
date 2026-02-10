@@ -11,12 +11,13 @@ use crate::config::{
 use crate::config::AppConfig;
 use crate::i18n;
 use crate::layout::create_temp_layout;
+use crate::logging;
 use crate::relay::store::MessageStore;
 use crate::zellij::ZellijSession;
 
 const SESSION_NAME: &str = "overlord";
 
-pub fn execute(config: &AppConfig) -> Result<()> {
+pub fn execute(config: &AppConfig, debug: bool) -> Result<()> {
     let lang = config.lang;
     let session = ZellijSession::new(SESSION_NAME);
     let cwd = env::current_dir()?;
@@ -55,7 +56,7 @@ pub fn execute(config: &AppConfig) -> Result<()> {
 
     // Generate per-role MCP configs
     let mcp_dir = relay.join("mcp");
-    generate_mcp_configs(&mcp_dir, &relay, SESSION_NAME, &plugin_path)?;
+    generate_mcp_configs(&mcp_dir, &relay, SESSION_NAME, &plugin_path, debug)?;
 
     // Save session metadata
     save_session_metadata(&SessionMetadata {
@@ -75,7 +76,9 @@ pub fn execute(config: &AppConfig) -> Result<()> {
     );
 
     // Generate layout with absolute paths to ritual files, MCP configs, and cwd
-    let (_temp_file, layout_path) = create_temp_layout(&rituals_dir, &mcp_dir, &cwd)?;
+    let (_temp_file, layout_path) = create_temp_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path)?;
+
+    logging::info(&format!("summon: starting session (cwd={})", cwd.display()));
 
     // Start the session - this blocks until Zellij exits
     let result = session.start(layout_path.to_str().unwrap());
@@ -95,6 +98,8 @@ pub fn execute(config: &AppConfig) -> Result<()> {
 
     // Handle the result
     result?;
+
+    logging::info("summon: session ended");
 
     println!(
         "{} {}",

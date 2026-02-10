@@ -6,6 +6,7 @@ mod commands;
 mod config;
 mod i18n;
 mod layout;
+mod logging;
 mod relay;
 mod zellij;
 
@@ -17,6 +18,10 @@ use commands::{init, status, summon, unsummon};
 #[command(version)]
 #[command(after_help = "魔王軍があなたの命令を待っています...")]
 struct Cli {
+    /// デバッグログを ~/.config/ovld/logs/ に出力
+    #[arg(long, global = true)]
+    debug: bool,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -51,10 +56,14 @@ enum Commands {
 fn main() {
     let cli = Cli::parse();
 
+    if cli.debug {
+        logging::init("ovld");
+    }
+
     let config = config::load_config();
 
     let result = match cli.command {
-        Commands::Summon => summon::execute(&config),
+        Commands::Summon => summon::execute(&config, cli.debug),
         Commands::Unsummon { force } => unsummon::execute(force, &config),
         Commands::Status => status::execute(&config),
         Commands::Init { force } => init::execute(force, &config),

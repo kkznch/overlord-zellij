@@ -167,7 +167,7 @@ pub fn extract_plugin() -> Result<PathBuf> {
     Ok(path)
 }
 
-pub fn generate_mcp_configs(mcp_dir: &Path, relay_dir: &Path, session_name: &str, plugin_path: &Path) -> Result<()> {
+pub fn generate_mcp_configs(mcp_dir: &Path, relay_dir: &Path, session_name: &str, plugin_path: &Path, debug: bool) -> Result<()> {
     fs::create_dir_all(mcp_dir)
         .with_context(|| format!("Failed to create MCP config directory: {:?}", mcp_dir))?;
 
@@ -175,17 +175,21 @@ pub fn generate_mcp_configs(mcp_dir: &Path, relay_dir: &Path, session_name: &str
 
     for (filename, _) in RITUAL_FILES {
         let role = filename.trim_end_matches(".md");
+        let mut env_vars = serde_json::json!({
+            "OVLD_ROLE": role,
+            "OVLD_RELAY_DIR": relay_dir.to_string_lossy(),
+            "OVLD_SESSION": session_name,
+            "OVLD_PLUGIN_PATH": plugin_path.to_string_lossy(),
+        });
+        if debug {
+            env_vars["OVLD_DEBUG"] = serde_json::json!("1");
+        }
         let config = serde_json::json!({
             "mcpServers": {
                 "ovld-relay": {
                     "command": ovld_path.to_string_lossy(),
                     "args": ["relay"],
-                    "env": {
-                        "OVLD_ROLE": role,
-                        "OVLD_RELAY_DIR": relay_dir.to_string_lossy(),
-                        "OVLD_SESSION": session_name,
-                        "OVLD_PLUGIN_PATH": plugin_path.to_string_lossy(),
-                    }
+                    "env": env_vars
                 }
             }
         });

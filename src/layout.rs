@@ -4,8 +4,9 @@ use std::path::PathBuf;
 use tempfile::NamedTempFile;
 
 /// Generate KDL layout with absolute paths to ritual files, MCP configs, and working directory
-pub fn generate_layout(rituals_dir: &PathBuf, mcp_dir: &PathBuf, cwd: &PathBuf) -> String {
+pub fn generate_layout(rituals_dir: &PathBuf, mcp_dir: &PathBuf, cwd: &PathBuf, plugin_path: &PathBuf) -> String {
     let cwd_str = cwd.display();
+    let plugin_str = plugin_path.display();
 
     let pane_config = |name: &str, size: Option<&str>| -> String {
         let size_attr = size.map(|s| format!(" size=\"{}\"", s)).unwrap_or_default();
@@ -28,6 +29,10 @@ pub fn generate_layout(rituals_dir: &PathBuf, mcp_dir: &PathBuf, cwd: &PathBuf) 
         pane split_direction="vertical" {{
 {overlord}
 {strategist}
+        }}
+        // Notify plugin: single instance for pipe message routing
+        pane size=1 borderless=true {{
+            plugin location="file:{plugin_str}"
         }}
     }}
 
@@ -59,13 +64,14 @@ pub fn generate_layout(rituals_dir: &PathBuf, mcp_dir: &PathBuf, cwd: &PathBuf) 
         glacier = pane_config("glacier", Some("33%")),
         shadow = pane_config("shadow", Some("33%")),
         storm = pane_config("storm", Some("34%")),
+        plugin_str = plugin_str,
     )
 }
 
 /// Create a temporary file with the generated layout
 /// Returns the temp file (keeps it alive) and its path
-pub fn create_temp_layout(rituals_dir: &PathBuf, mcp_dir: &PathBuf, cwd: &PathBuf) -> Result<(NamedTempFile, PathBuf)> {
-    let content = generate_layout(rituals_dir, mcp_dir, cwd);
+pub fn create_temp_layout(rituals_dir: &PathBuf, mcp_dir: &PathBuf, cwd: &PathBuf, plugin_path: &PathBuf) -> Result<(NamedTempFile, PathBuf)> {
+    let content = generate_layout(rituals_dir, mcp_dir, cwd, plugin_path);
 
     let temp_file = NamedTempFile::with_suffix(".kdl")
         .context("Failed to create temporary layout file")?;
@@ -88,7 +94,8 @@ mod tests {
         let rituals_dir = PathBuf::from("/home/user/.config/ovld/rituals");
         let mcp_dir = PathBuf::from("/home/user/.config/ovld/mcp");
         let cwd = PathBuf::from("/home/user/projects/myproject");
-        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd);
+        let plugin_path = PathBuf::from("/home/user/.config/ovld/plugins/ovld-notify-plugin.wasm");
+        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path);
 
         assert!(layout.contains("command \"claude\""));
         assert!(layout.contains("--system-prompt-file"));
@@ -97,5 +104,6 @@ mod tests {
         assert!(layout.contains("/home/user/.config/ovld/mcp/overlord.json"));
         assert!(layout.contains("cwd=\"/home/user/projects/myproject\""));
         assert!(layout.contains("\"--setting-sources\" \"project,local\""));
+        assert!(layout.contains("file:/home/user/.config/ovld/plugins/ovld-notify-plugin.wasm"));
     }
 }

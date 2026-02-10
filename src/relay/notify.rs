@@ -1,6 +1,8 @@
 use anyhow::{bail, Context, Result};
 use std::process::{Command, Stdio};
 
+use crate::logging;
+
 /// Map role name to its terminal pane ID in the layout.
 /// Zellij assigns terminal pane IDs sequentially in layout order.
 fn pane_id(role: &str) -> Option<u32> {
@@ -39,26 +41,43 @@ pub fn notify_pane(session: &str, target_role: &str, from_role: &str, plugin_pat
 
     let payload = build_payload(id, from_role);
 
-    let status = Command::new("zellij")
+    logging::debug(&format!(
+        "zellij pipe: target={} pane_id={} session={} plugin={}",
+        target_role, id, session, plugin_path
+    ));
+
+    let output = Command::new("zellij")
         .stdin(Stdio::null())
         .env("ZELLIJ_SESSION_NAME", session)
+        .env_remove("ZELLIJ")
         .args([
             "pipe",
             "--plugin", &format!("file:{}", plugin_path),
             "--name", "send_keys",
             "--", &payload,
         ])
-        .status()
+        .output()
         .with_context(|| format!("Failed to execute zellij pipe for {}", target_role))?;
 
-    if !status.success() {
-        bail!(
-            "zellij pipe failed for {} (exit code: {:?})",
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        logging::error(&format!(
+            "zellij pipe failed: target={} exit={:?} stderr={} stdout={}",
             target_role,
-            status.code()
+            output.status.code(),
+            stderr.trim(),
+            stdout.trim(),
+        ));
+        bail!(
+            "zellij pipe failed for {} (exit code: {:?}): {}",
+            target_role,
+            output.status.code(),
+            stderr.trim(),
         );
     }
 
+    logging::debug(&format!("zellij pipe: success target={}", target_role));
     Ok(())
 }
 

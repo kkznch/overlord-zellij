@@ -25,15 +25,29 @@ impl ZellijPlugin for OvldNotifier {
     }
 
     fn pipe(&mut self, pipe_message: PipeMessage) -> bool {
+        eprintln!("[ovld-notify] pipe received: name={}", pipe_message.name);
         if pipe_message.name == "send_keys" {
             if let Some(payload) = pipe_message.payload {
-                if let Ok(msg) = serde_json::from_str::<SendKeysPayload>(&payload) {
-                    let pane_id = PaneId::Terminal(msg.pane_id);
-                    write_to_pane_id(msg.text.into_bytes(), pane_id);
-                    if msg.send_enter {
-                        write_to_pane_id(vec![13], pane_id); // carriage return
+                match serde_json::from_str::<SendKeysPayload>(&payload) {
+                    Ok(msg) => {
+                        eprintln!(
+                            "[ovld-notify] write_to_pane_id: pane={} len={} send_enter={}",
+                            msg.pane_id,
+                            msg.text.len(),
+                            msg.send_enter
+                        );
+                        let pane_id = PaneId::Terminal(msg.pane_id);
+                        write_to_pane_id(msg.text.into_bytes(), pane_id);
+                        if msg.send_enter {
+                            write_to_pane_id(vec![13], pane_id); // carriage return
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("[ovld-notify] failed to parse payload: {}", e);
                     }
                 }
+            } else {
+                eprintln!("[ovld-notify] no payload in pipe message");
             }
         }
         false

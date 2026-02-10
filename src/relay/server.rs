@@ -12,6 +12,7 @@ use serde::Deserialize;
 use super::notify;
 use super::store::MessageStore;
 use super::types::{is_valid_role, Priority, Status, ALL_ROLES};
+use crate::logging;
 
 const SESSION_NAME: &str = "overlord";
 
@@ -122,6 +123,8 @@ impl RelayService {
             ));
         }
 
+        logging::debug(&format!("send_message: from={} to={} subject={}", self.role, req.to, req.subject));
+
         let priority = parse_priority(req.priority.as_deref());
         self.store
             .send_message(&self.role, &req.to, &req.subject, &req.body, priority)
@@ -137,6 +140,7 @@ impl RelayService {
 
         if should_notify {
             if let Err(e) = notify::notify_pane(&self.session_name, &req.to, &self.role, &self.plugin_path) {
+                logging::error(&format!("notify failed: from={} to={} err={}", self.role, req.to, e));
                 return Ok(CallToolResult::success(vec![Content::text(format!(
                     "Message sent to {} (auto-notification failed: {}). Target should check_inbox manually.",
                     req.to, e
@@ -278,7 +282,9 @@ impl RelayService {
             })?;
 
             if should_notify {
-                let _ = notify::notify_pane(&self.session_name, role, &self.role, &self.plugin_path);
+                if let Err(e) = notify::notify_pane(&self.session_name, role, &self.role, &self.plugin_path) {
+                    logging::error(&format!("broadcast notify failed: to={} err={}", role, e));
+                }
             }
             sent_to.push(*role);
         }
@@ -311,6 +317,10 @@ pub async fn serve() -> anyhow::Result<()> {
     let role = env::var("OVLD_ROLE")
         .unwrap_or_else(|_| panic!("OVLD_ROLE environment variable must be set"));
 
+    if env::var("OVLD_DEBUG").is_ok() {
+        logging::init(&format!("relay-{}", role));
+    }
+
     if !is_valid_role(&role) {
         anyhow::bail!("Invalid OVLD_ROLE '{}'. Valid: {:?}", role, ALL_ROLES);
     }
@@ -331,6 +341,8 @@ pub async fn serve() -> anyhow::Result<()> {
         .unwrap_or_else(|_| String::new());
 
     let store = Arc::new(MessageStore::new(relay_dir));
+
+    logging::info(&format!("MCP relay started: role={} session={}", role, session_name));
 
     let service = RelayService::new(role, store, session_name, plugin_path);
 
