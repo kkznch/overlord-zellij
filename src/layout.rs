@@ -15,7 +15,7 @@ pub fn generate_layout(rituals_dir: &PathBuf, mcp_dir: &PathBuf, cwd: &PathBuf, 
         format!(
             r#"            pane name="{name}"{size_attr} cwd="{cwd_str}" {{
                 command "claude"
-                args "--system-prompt-file" "{}" "--mcp-config" "{}" "--setting-sources" "project,local"
+                args "--system-prompt-file" "{}" "--mcp-config" "{}" "--setting-sources" "project,local" "--allowedTools" "mcp__ovld-relay__*"
             }}"#,
             ritual_path.display(),
             mcp_config_path.display()

@@ -1,5 +1,6 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use std::process::{Command, Stdio};
+use std::thread;
 
 use crate::logging;
 
@@ -23,61 +24,61 @@ fn build_payload(pane_id: u32, from_role: &str) -> String {
         "[MESSAGE from {}] check_inbox ツールで受信メッセージを確認して作業を開始してください。",
         from_role
     );
-    format!(
-        r#"{{"pane_id":{},"text":"{}","send_enter":true}}"#,
-        pane_id,
-        notification.replace('\\', "\\\\").replace('"', "\\\"")
-    )
+    serde_json::json!({
+        "pane_id": pane_id,
+        "text": notification,
+        "send_enter": true,
+    })
+    .to_string()
 }
 
 /// Send a notification to a target pane via the Zellij notify plugin.
 ///
 /// Uses `zellij pipe` to send a JSON payload to the plugin,
 /// which writes directly to the target pane's STDIN without switching focus.
-/// Session targeting is done via ZELLIJ_SESSION_NAME env var.
+/// Inherits parent ZELLIJ env to connect to the current session via IPC.
+///
+/// Runs in a background thread because `zellij pipe` blocks for several minutes.
 pub fn notify_pane(session: &str, target_role: &str, from_role: &str, plugin_path: &str) -> Result<()> {
     let id = pane_id(target_role)
         .with_context(|| format!("Unknown target role: {}", target_role))?;
 
     let payload = build_payload(id, from_role);
+    let target = target_role.to_string();
+    let session = session.to_string();
+    let plugin = format!("file:{}", plugin_path);
 
     logging::debug(&format!(
         "zellij pipe: target={} pane_id={} session={} plugin={}",
-        target_role, id, session, plugin_path
+        target, id, session, plugin_path
     ));
 
-    let output = Command::new("zellij")
-        .stdin(Stdio::null())
-        .env("ZELLIJ_SESSION_NAME", session)
-        .env_remove("ZELLIJ")
-        .args([
-            "pipe",
-            "--plugin", &format!("file:{}", plugin_path),
-            "--name", "send_keys",
-            "--", &payload,
-        ])
-        .output()
-        .with_context(|| format!("Failed to execute zellij pipe for {}", target_role))?;
+    // Keep parent env (ZELLIJ, ZELLIJ_SESSION_NAME) so zellij pipe
+    // connects to the current session directly via IPC.
+    // zellij pipe does not create sessions, so no nested-session risk.
+    thread::spawn(move || {
+        let result = Command::new("zellij")
+            .stdin(Stdio::null())
+            .args(["pipe", "--plugin", &plugin, "--name", "send_keys", "--", &payload])
+            .output();
 
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        logging::error(&format!(
-            "zellij pipe failed: target={} exit={:?} stderr={} stdout={}",
-            target_role,
-            output.status.code(),
-            stderr.trim(),
-            stdout.trim(),
-        ));
-        bail!(
-            "zellij pipe failed for {} (exit code: {:?}): {}",
-            target_role,
-            output.status.code(),
-            stderr.trim(),
-        );
-    }
+        match result {
+            Ok(output) if output.status.success() => {
+                logging::debug(&format!("zellij pipe: success target={}", target));
+            }
+            Ok(output) => {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                logging::error(&format!(
+                    "zellij pipe failed: target={} exit={:?} stderr={}",
+                    target, output.status.code(), stderr.trim()
+                ));
+            }
+            Err(e) => {
+                logging::error(&format!("zellij pipe exec failed: target={} err={}", target, e));
+            }
+        }
+    });
 
-    logging::debug(&format!("zellij pipe: success target={}", target_role));
     Ok(())
 }
 
