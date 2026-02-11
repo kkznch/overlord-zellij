@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
@@ -7,6 +8,8 @@ use tempfile::NamedTempFile;
 pub fn generate_layout(rituals_dir: &Path, mcp_dir: &Path, cwd: &Path, plugin_path: &Path) -> String {
     let cwd_str = cwd.display();
     let plugin_str = plugin_path.display();
+    let ovld_path = env::current_exe().unwrap_or_else(|_| PathBuf::from("ovld"));
+    let ovld_str = ovld_path.display();
 
     let pane_config = |name: &str, size: Option<&str>| -> String {
         let size_attr = size.map(|s| format!(" size=\"{}\"", s)).unwrap_or_default();
@@ -47,6 +50,14 @@ pub fn generate_layout(rituals_dir: &Path, mcp_dir: &Path, cwd: &Path, plugin_pa
 {glacier}
 {shadow}
 {storm}
+        }}
+    }}
+
+    // Dashboard tab: real-time army status (TUI)
+    tab name="dashboard" {{
+        pane name="dashboard" cwd="{cwd_str}" {{
+            command "{ovld_str}"
+            args "dashboard"
         }}
     }}
 
@@ -122,6 +133,7 @@ mod tests {
         assert!(layout.contains("tab name=\"command\""));
         assert!(layout.contains("tab name=\"battlefield\""));
         assert!(layout.contains("tab name=\"support\""));
+        assert!(layout.contains("tab name=\"dashboard\""));
     }
 
     #[test]

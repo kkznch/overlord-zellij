@@ -33,6 +33,10 @@ rmcp = { version = "0.14", features = ["server", "transport-io"] }
 tokio = { version = "1", features = ["full"] }
 schemars = "1.2"
 
+# TUI dashboard
+ratatui = "0.29"
+crossterm = "0.28"
+
 [dev-dependencies]
 assert_cmd = "2.0"
 predicates = "3.1"

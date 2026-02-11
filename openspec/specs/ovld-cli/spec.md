@@ -1,5 +1,5 @@
 ## Purpose
-ovld CLIツールのサブコマンド（summon, unsummon, status, init, relay）を定義する。
+ovld CLIツールのサブコマンド（summon, unsummon, status, init, dashboard, relay）を定義する。
 
 ## Requirements
 
@@ -55,6 +55,17 @@ ovld CLIツールのサブコマンド（summon, unsummon, status, init, relay�
 #### Scenario: 強制再展開
 - **WHEN** ユーザーが `ovld init --force` を実行した時
 - **THEN** 既存の儀式ファイルと `config.toml` を上書きしてデフォルトに戻す
+
+### Requirement: dashboard コマンドでリアルタイムステータス表示
+`dashboard` サブコマンドでリアルタイム魔王軍ステータスダッシュボード（TUI）を起動しなければならない (SHALL)。
+
+#### Scenario: ダッシュボード起動
+- **WHEN** ユーザーが `ovld dashboard` を実行した時
+- **THEN** ratatui ベースの TUI ダッシュボードがターミナル全画面で起動する
+
+#### Scenario: ヘルプに表示
+- **WHEN** ユーザーが `ovld --help` を実行した時
+- **THEN** `dashboard` サブコマンドがヘルプ出力に表示される
 
 ### Requirement: relay サブコマンド
 エージェント間通信用の MCP サーバーを起動する隠しサブコマンド `relay` を提供しなければならない (SHALL)。

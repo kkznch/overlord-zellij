@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 
-use ovld::commands::{init, status, summon, unsummon};
+use ovld::commands::{dashboard, init, status, summon, unsummon};
 use ovld::{config, logging, relay};
 
 #[derive(Parser)]
@@ -40,6 +40,9 @@ enum Commands {
         force: bool,
     },
 
+    /// dashboard - リアルタイム魔王軍ステータスダッシュボード (TUI)
+    Dashboard,
+
     /// relay - MCP relay server (internal, spawned by Claude instances)
     #[command(hide = true)]
     Relay,
@@ -59,6 +62,7 @@ fn main() {
         Commands::Unsummon { force } => unsummon::execute(force, &config),
         Commands::Status => status::execute(&config),
         Commands::Init { force } => init::execute(force, &config),
+        Commands::Dashboard => dashboard::execute(),
         Commands::Relay => {
             let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
             rt.block_on(relay::serve())

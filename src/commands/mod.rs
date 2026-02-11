@@ -1,3 +1,4 @@
+pub mod dashboard;
 pub mod init;
 pub mod unsummon;
 pub mod status;

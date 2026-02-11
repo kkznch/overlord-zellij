@@ -64,6 +64,20 @@ pub fn t(key: &str, lang: Lang) -> &'static str {
         ("status.hint_unsummon", Lang::En) => "Run 'ovld unsummon' to unsummon the session.",
         ("status.hint_unsummon", Lang::Ja) => "'ovld unsummon' でセッションを還送できます。",
 
+        // === role display names (short, for dashboard) ===
+        ("role.overlord", Lang::En) => "overlord",
+        ("role.overlord", Lang::Ja) => "魔王",
+        ("role.strategist", Lang::En) => "strategist",
+        ("role.strategist", Lang::Ja) => "軍師",
+        ("role.inferno", Lang::En) => "inferno",
+        ("role.inferno", Lang::Ja) => "業火",
+        ("role.glacier", Lang::En) => "glacier",
+        ("role.glacier", Lang::Ja) => "氷結",
+        ("role.shadow", Lang::En) => "shadow",
+        ("role.shadow", Lang::Ja) => "常闇",
+        ("role.storm", Lang::En) => "storm",
+        ("role.storm", Lang::Ja) => "疾風",
+
         // === init ===
         ("init.already_exists", Lang::En) => "Global config already deployed: {path}",
         ("init.already_exists", Lang::Ja) => "グローバル設定は既に展開済みです: {path}",

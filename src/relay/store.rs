@@ -158,6 +158,37 @@ impl MessageStore {
         Ok(statuses)
     }
 
+    /// Check if a role has pending (unread) messages
+    pub fn has_pending(&self, role: &str) -> bool {
+        self.pending_dir().join(role).exists()
+    }
+
+    /// Read recent messages across all inboxes (for dashboard display, does NOT mark as read)
+    pub fn recent_messages(&self, limit: usize) -> Result<Vec<Message>> {
+        let mut all_messages = Vec::new();
+
+        for role in ALL_ROLES {
+            let inbox = self.inbox_dir(role);
+            if !inbox.exists() {
+                continue;
+            }
+            let entries = fs::read_dir(&inbox)?;
+            for entry in entries.filter_map(|e| e.ok()) {
+                if entry.path().extension().is_some_and(|ext| ext == "json") {
+                    if let Ok(content) = fs::read_to_string(entry.path()) {
+                        if let Ok(msg) = serde_json::from_str::<Message>(&content) {
+                            all_messages.push(msg);
+                        }
+                    }
+                }
+            }
+        }
+
+        all_messages.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+        all_messages.truncate(limit);
+        Ok(all_messages)
+    }
+
     /// Clean up all relay data
     pub fn cleanup(&self) -> Result<()> {
         if self.base_dir.exists() {
@@ -330,5 +361,38 @@ mod tests {
         let (_dir, store) = test_store();
         store.cleanup().unwrap();
         assert!(!store.base_dir.exists());
+    }
+
+    #[test]
+    fn test_has_pending() {
+        let (_dir, store) = test_store();
+        assert!(!store.has_pending("inferno"));
+        store.set_pending("inferno").unwrap();
+        assert!(store.has_pending("inferno"));
+    }
+
+    #[test]
+    fn test_recent_messages() {
+        let (_dir, store) = test_store();
+
+        store.send_message("overlord", "inferno", "Task 1", "body1", Priority::Normal).unwrap();
+        store.send_message("strategist", "glacier", "Task 2", "body2", Priority::Normal).unwrap();
+        store.send_message("overlord", "shadow", "Task 3", "body3", Priority::Urgent).unwrap();
+
+        let recent = store.recent_messages(10).unwrap();
+        assert_eq!(recent.len(), 3);
+        // Most recent first
+        assert_eq!(recent[0].subject, "Task 3");
+
+        // With limit
+        let recent = store.recent_messages(2).unwrap();
+        assert_eq!(recent.len(), 2);
+    }
+
+    #[test]
+    fn test_recent_messages_empty() {
+        let (_dir, store) = test_store();
+        let recent = store.recent_messages(10).unwrap();
+        assert!(recent.is_empty());
     }
 }
