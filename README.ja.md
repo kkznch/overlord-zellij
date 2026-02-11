@@ -132,8 +132,10 @@ Zellijセッションは3つのタブで構成：
 ## インストール
 
 ```bash
-cargo install --path .
+make install
 ```
+
+`wasm32-wasip1` ターゲットの追加、WASM通知プラグインのビルド、`ovld` CLIのインストールを一括で実行する。
 
 ## 使い方
 

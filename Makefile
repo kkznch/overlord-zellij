@@ -7,6 +7,7 @@ release: plugin-release
 	cargo build --release
 
 plugin:
+	rustup target add wasm32-wasip1 2>/dev/null || true
 	cargo build --manifest-path plugin/Cargo.toml --release --target wasm32-wasip1
 	mkdir -p target/plugin
 	cp plugin/target/wasm32-wasip1/release/ovld-notify-plugin.wasm target/plugin/

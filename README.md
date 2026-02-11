@@ -134,8 +134,10 @@ The notify plugin is a minimal WASM pane that routes inter-pane notifications wi
 ## Installation
 
 ```bash
-cargo install --path .
+make install
 ```
+
+This automatically installs the `wasm32-wasip1` target, builds the WASM notify plugin, and installs the `ovld` CLI.
 
 ## Usage
 
