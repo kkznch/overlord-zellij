@@ -4,18 +4,16 @@ use colored::Colorize;
 use std::env;
 
 use crate::config::{
-    delete_session_metadata, ensure_default_config, extract_plugin, generate_mcp_configs,
+    ensure_default_config, extract_plugin, generate_mcp_configs,
     load_session_metadata, relay_dir, resolve_rituals_dir, save_session_metadata,
-    validate_rituals_dir, SessionMetadata,
+    validate_rituals_dir, SessionMetadata, AppConfig,
 };
-use crate::config::AppConfig;
 use crate::i18n;
 use crate::layout::create_temp_layout;
 use crate::logging;
 use crate::relay::store::MessageStore;
 use crate::zellij::ZellijSession;
-
-const SESSION_NAME: &str = "overlord";
+use crate::SESSION_NAME;
 
 pub fn execute(config: &AppConfig, debug: bool) -> Result<()> {
     let lang = config.lang;
@@ -83,18 +81,12 @@ pub fn execute(config: &AppConfig, debug: bool) -> Result<()> {
     // Start the session - this blocks until Zellij exits
     let result = session.start(layout_path.to_str().unwrap());
 
-    // Clean up session metadata when session ends (regardless of success/failure)
-    let _ = delete_session_metadata();
-
     // Clean up EXITED session if it still exists (best-effort)
     if session.exists().unwrap_or(false) {
         let _ = session.kill();
         let _ = session.delete(true);
-        if let Ok(relay) = relay_dir() {
-            let store = MessageStore::new(relay);
-            let _ = store.cleanup();
-        }
     }
+    super::cleanup_session_data();
 
     // Handle the result
     result?;

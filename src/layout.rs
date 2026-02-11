@@ -1,10 +1,10 @@
 use anyhow::{Context, Result};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
 
 /// Generate KDL layout with absolute paths to ritual files, MCP configs, and working directory
-pub fn generate_layout(rituals_dir: &PathBuf, mcp_dir: &PathBuf, cwd: &PathBuf, plugin_path: &PathBuf) -> String {
+pub fn generate_layout(rituals_dir: &Path, mcp_dir: &Path, cwd: &Path, plugin_path: &Path) -> String {
     let cwd_str = cwd.display();
     let plugin_str = plugin_path.display();
 
@@ -70,7 +70,7 @@ pub fn generate_layout(rituals_dir: &PathBuf, mcp_dir: &PathBuf, cwd: &PathBuf, 
 
 /// Create a temporary file with the generated layout
 /// Returns the temp file (keeps it alive) and its path
-pub fn create_temp_layout(rituals_dir: &PathBuf, mcp_dir: &PathBuf, cwd: &PathBuf, plugin_path: &PathBuf) -> Result<(NamedTempFile, PathBuf)> {
+pub fn create_temp_layout(rituals_dir: &Path, mcp_dir: &Path, cwd: &Path, plugin_path: &Path) -> Result<(NamedTempFile, PathBuf)> {
     let content = generate_layout(rituals_dir, mcp_dir, cwd, plugin_path);
 
     let temp_file = NamedTempFile::with_suffix(".kdl")

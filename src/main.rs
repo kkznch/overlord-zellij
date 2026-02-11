@@ -1,16 +1,8 @@
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 
-mod army;
-mod commands;
-mod config;
-mod i18n;
-mod layout;
-mod logging;
-mod relay;
-mod zellij;
-
-use commands::{init, status, summon, unsummon};
+use ovld::commands::{init, status, summon, unsummon};
+use ovld::{config, logging, relay};
 
 #[derive(Parser)]
 #[command(name = "ovld")]

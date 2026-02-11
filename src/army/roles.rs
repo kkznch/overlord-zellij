@@ -22,6 +22,17 @@ impl Role {
         }
     }
 
+    pub fn icon(&self) -> &'static str {
+        match self {
+            Role::Overlord => "\u{1F451}",
+            Role::Strategist => "\u{1F5E1}\u{FE0F}",
+            Role::Inferno => "\u{1F525}",
+            Role::Glacier => "\u{1F9CA}",
+            Role::Shadow => "\u{1F311}",
+            Role::Storm => "\u{26A1}",
+        }
+    }
+
     pub fn all() -> Vec<Role> {
         vec![
             Role::Overlord,

@@ -36,10 +36,6 @@ pub fn debug(msg: &str) {
 pub fn info(msg: &str) {
     write_log("INFO", msg);
 }
-#[allow(dead_code)]
-pub fn warn(msg: &str) {
-    write_log("WARN", msg);
-}
 pub fn error(msg: &str) {
     write_log("ERROR", msg);
 }

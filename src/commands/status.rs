@@ -5,8 +5,7 @@ use crate::army::Role;
 use crate::config::{load_session_metadata, AppConfig};
 use crate::i18n;
 use crate::zellij::ZellijSession;
-
-const SESSION_NAME: &str = "overlord";
+use crate::SESSION_NAME;
 
 pub fn execute(config: &AppConfig) -> Result<()> {
     let lang = config.lang;
@@ -66,15 +65,7 @@ pub fn execute(config: &AppConfig) -> Result<()> {
     println!();
 
     for role in Role::all() {
-        let icon = match role {
-            Role::Overlord => "👑",
-            Role::Strategist => "🗡️",
-            Role::Inferno => "🔥",
-            Role::Glacier => "🧊",
-            Role::Shadow => "🌑",
-            Role::Storm => "⚡",
-        };
-        println!("  {} {}", icon, role.display_name());
+        println!("  {} {}", role.icon(), role.display_name());
     }
 
     println!();

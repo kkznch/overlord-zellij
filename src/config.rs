@@ -21,17 +21,13 @@ impl Default for AppConfig {
 
 /// Load config from ~/.config/ovld/config.toml, falling back to defaults.
 pub fn load_config() -> AppConfig {
-    let Ok(dir) = config_dir() else {
-        return AppConfig::default();
-    };
-    let path = dir.join("config.toml");
-    if !path.exists() {
-        return AppConfig::default();
-    }
-    let Ok(content) = fs::read_to_string(&path) else {
-        return AppConfig::default();
-    };
-    toml::from_str(&content).unwrap_or_default()
+    load_config_inner().unwrap_or_default()
+}
+
+fn load_config_inner() -> Result<AppConfig> {
+    let path = config_dir()?.join("config.toml");
+    let content = fs::read_to_string(&path)?;
+    Ok(toml::from_str(&content)?)
 }
 
 /// Save default config.toml to the specified directory.

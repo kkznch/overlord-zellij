@@ -13,8 +13,7 @@ use super::notify;
 use super::store::MessageStore;
 use super::types::{is_valid_role, Priority, Status, ALL_ROLES};
 use crate::logging;
-
-const SESSION_NAME: &str = "overlord";
+use crate::SESSION_NAME;
 
 // --- Tool request types ---
 

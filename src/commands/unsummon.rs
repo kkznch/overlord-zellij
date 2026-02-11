@@ -2,12 +2,10 @@ use anyhow::{bail, Result};
 use colored::Colorize;
 use std::io::{self, Write};
 
-use crate::config::{delete_session_metadata, relay_dir, AppConfig};
+use crate::config::AppConfig;
 use crate::i18n;
-use crate::relay::store::MessageStore;
 use crate::zellij::ZellijSession;
-
-const SESSION_NAME: &str = "overlord";
+use crate::SESSION_NAME;
 
 pub fn execute(force: bool, config: &AppConfig) -> Result<()> {
     let lang = config.lang;
@@ -55,14 +53,8 @@ pub fn execute(force: bool, config: &AppConfig) -> Result<()> {
     // Delete session data for complete cleanup
     let _ = session.delete(true);
 
-    // Delete session metadata
-    let _ = delete_session_metadata();
-
-    // Clean up relay directory
-    if let Ok(relay) = relay_dir() {
-        let store = MessageStore::new(relay);
-        let _ = store.cleanup();
-    }
+    // Clean up session metadata and relay data
+    super::cleanup_session_data();
 
     println!(
         "{} {}",

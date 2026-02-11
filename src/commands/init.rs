@@ -6,8 +6,8 @@ use crate::i18n;
 
 pub fn execute(force: bool, config: &AppConfig) -> Result<()> {
     let lang = config.lang;
-    let config = config_dir()?;
-    let rituals_dir = config.join("rituals");
+    let config_path = config_dir()?;
+    let rituals_dir = config_path.join("rituals");
 
     if rituals_dir.exists() && !force {
         println!(
@@ -25,7 +25,7 @@ pub fn execute(force: bool, config: &AppConfig) -> Result<()> {
 
     std::fs::create_dir_all(&rituals_dir)?;
     extract_rituals_to(&rituals_dir)?;
-    save_default_config(&config)?;
+    save_default_config(&config_path)?;
 
     println!(
         "{} {}",
