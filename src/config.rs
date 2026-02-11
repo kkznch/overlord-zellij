@@ -209,6 +209,64 @@ mod tests {
     use tempfile::TempDir;
 
     #[test]
+    fn test_app_config_default() {
+        let config = AppConfig::default();
+        assert!(matches!(config.lang, Lang::En));
+    }
+
+    #[test]
+    fn test_save_default_config() {
+        let dir = TempDir::new().unwrap();
+        save_default_config(dir.path()).unwrap();
+        let path = dir.path().join("config.toml");
+        assert!(path.exists());
+        let content = fs::read_to_string(&path).unwrap();
+        assert!(content.contains("lang"));
+    }
+
+    #[test]
+    fn test_save_and_read_config_roundtrip() {
+        let dir = TempDir::new().unwrap();
+        save_default_config(dir.path()).unwrap();
+        let content = fs::read_to_string(dir.path().join("config.toml")).unwrap();
+        let config: AppConfig = toml::from_str(&content).unwrap();
+        assert!(matches!(config.lang, Lang::En));
+    }
+
+    #[test]
+    fn test_config_toml_parse_ja() {
+        let toml_str = r#"lang = "ja""#;
+        let config: AppConfig = toml::from_str(toml_str).unwrap();
+        assert!(matches!(config.lang, Lang::Ja));
+    }
+
+    #[test]
+    fn test_config_toml_parse_default_on_empty() {
+        let toml_str = "";
+        let config: AppConfig = toml::from_str(toml_str).unwrap();
+        assert!(matches!(config.lang, Lang::En));
+    }
+
+    #[test]
+    fn test_generate_mcp_configs() {
+        let dir = TempDir::new().unwrap();
+        let mcp_dir = dir.path().join("mcp");
+        let relay_dir = dir.path().join("relay");
+        let plugin_path = PathBuf::from("/tmp/test-plugin.wasm");
+        generate_mcp_configs(&mcp_dir, &relay_dir, "test-session", &plugin_path, false).unwrap();
+
+        // Should create 6 config files (one per role)
+        for (filename, _) in RITUAL_FILES {
+            let role = filename.trim_end_matches(".md");
+            let config_path = mcp_dir.join(format!("{}.json", role));
+            assert!(config_path.exists(), "MCP config for {} should exist", role);
+            let content = fs::read_to_string(&config_path).unwrap();
+            assert!(content.contains("ovld-relay"));
+            assert!(content.contains(role));
+        }
+    }
+
+    #[test]
     fn test_validate_rituals_dir_all_present() {
         let dir = TempDir::new().unwrap();
         for (f, _) in RITUAL_FILES {
@@ -248,5 +306,23 @@ mod tests {
         let dir = TempDir::new().unwrap();
         extract_rituals_to(dir.path()).unwrap();
         assert!(validate_rituals_dir(dir.path()).is_ok());
+    }
+
+    #[test]
+    fn test_app_config_toml_roundtrip() {
+        let config = AppConfig { lang: Lang::Ja };
+        let toml_str = toml::to_string_pretty(&config).unwrap();
+        let deserialized: AppConfig = toml::from_str(&toml_str).unwrap();
+        assert!(matches!(deserialized.lang, Lang::Ja));
+    }
+
+    #[test]
+    fn test_lang_all_variants_via_config() {
+        for lang in [Lang::En, Lang::Ja] {
+            let config = AppConfig { lang };
+            let toml_str = toml::to_string_pretty(&config).unwrap();
+            let deserialized: AppConfig = toml::from_str(&toml_str).unwrap();
+            assert_eq!(config.lang, deserialized.lang);
+        }
     }
 }

@@ -90,6 +90,57 @@ mod tests {
     use std::path::PathBuf;
 
     #[test]
+    fn test_generate_layout_contains_all_roles() {
+        let rituals_dir = PathBuf::from("/tmp/rituals");
+        let mcp_dir = PathBuf::from("/tmp/mcp");
+        let cwd = PathBuf::from("/tmp/project");
+        let plugin_path = PathBuf::from("/tmp/plugin.wasm");
+        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path);
+
+        for role in &["overlord", "strategist", "inferno", "glacier", "shadow", "storm"] {
+            assert!(
+                layout.contains(&format!("pane name=\"{}\"", role)),
+                "Layout should contain pane for {}",
+                role
+            );
+            assert!(
+                layout.contains(&format!("{}.md", role)),
+                "Layout should reference ritual file for {}",
+                role
+            );
+        }
+    }
+
+    #[test]
+    fn test_generate_layout_contains_tab_names() {
+        let rituals_dir = PathBuf::from("/tmp/rituals");
+        let mcp_dir = PathBuf::from("/tmp/mcp");
+        let cwd = PathBuf::from("/tmp/project");
+        let plugin_path = PathBuf::from("/tmp/plugin.wasm");
+        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path);
+
+        assert!(layout.contains("tab name=\"command\""));
+        assert!(layout.contains("tab name=\"battlefield\""));
+        assert!(layout.contains("tab name=\"support\""));
+    }
+
+    #[test]
+    fn test_create_temp_layout_creates_file() {
+        let rituals_dir = PathBuf::from("/tmp/rituals");
+        let mcp_dir = PathBuf::from("/tmp/mcp");
+        let cwd = PathBuf::from("/tmp/project");
+        let plugin_path = PathBuf::from("/tmp/plugin.wasm");
+        let (temp_file, path) = create_temp_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path).unwrap();
+
+        assert!(path.exists());
+        assert!(path.to_string_lossy().ends_with(".kdl"));
+        let content = fs::read_to_string(&path).unwrap();
+        assert!(content.contains("layout {"));
+        assert!(content.contains("command \"claude\""));
+        drop(temp_file); // Cleanup
+    }
+
+    #[test]
     fn test_generate_layout_with_cwd() {
         let rituals_dir = PathBuf::from("/home/user/.config/ovld/rituals");
         let mcp_dir = PathBuf::from("/home/user/.config/ovld/mcp");

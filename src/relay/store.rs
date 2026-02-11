@@ -180,6 +180,66 @@ mod tests {
     }
 
     #[test]
+    fn test_init_creates_directories() {
+        let dir = TempDir::new().unwrap();
+        let store = MessageStore::new(dir.path().to_path_buf());
+        store.init().unwrap();
+
+        // Check inbox dirs for all roles
+        for role in ALL_ROLES {
+            assert!(dir.path().join("inbox").join(role).is_dir());
+        }
+        assert!(dir.path().join("status").is_dir());
+        assert!(dir.path().join("pending").is_dir());
+    }
+
+    #[test]
+    fn test_init_creates_default_statuses() {
+        let dir = TempDir::new().unwrap();
+        let store = MessageStore::new(dir.path().to_path_buf());
+        store.init().unwrap();
+
+        for role in ALL_ROLES {
+            let status = store.get_status(role).unwrap().unwrap();
+            assert!(matches!(status.status, Status::Idle));
+        }
+    }
+
+    #[test]
+    fn test_status_update_and_get_roundtrip() {
+        let (_dir, store) = test_store();
+        store.update_status("glacier", Status::Working, Some("Defining types")).unwrap();
+
+        let status = store.get_status("glacier").unwrap().unwrap();
+        assert_eq!(status.role, "glacier");
+        assert!(matches!(status.status, Status::Working));
+        assert_eq!(status.task.as_deref(), Some("Defining types"));
+
+        // Update again
+        store.update_status("glacier", Status::Done, None).unwrap();
+        let status = store.get_status("glacier").unwrap().unwrap();
+        assert!(matches!(status.status, Status::Done));
+        assert!(status.task.is_none());
+    }
+
+    #[test]
+    fn test_multiple_messages_all_returned() {
+        let (_dir, store) = test_store();
+
+        store.send_message("overlord", "inferno", "Task A", "body a", Priority::Normal).unwrap();
+        store.send_message("strategist", "inferno", "Task B", "body b", Priority::Normal).unwrap();
+        store.send_message("glacier", "inferno", "Task C", "body c", Priority::Normal).unwrap();
+
+        let messages = store.check_inbox("inferno", false).unwrap();
+        assert_eq!(messages.len(), 3);
+
+        let subjects: Vec<&str> = messages.iter().map(|m| m.subject.as_str()).collect();
+        assert!(subjects.contains(&"Task A"));
+        assert!(subjects.contains(&"Task B"));
+        assert!(subjects.contains(&"Task C"));
+    }
+
+    #[test]
     fn test_send_and_receive_message() {
         let (_dir, store) = test_store();
 

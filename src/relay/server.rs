@@ -312,6 +312,38 @@ impl ServerHandler for RelayService {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_priority_urgent() {
+        assert!(matches!(parse_priority(Some("urgent")), Priority::Urgent));
+    }
+
+    #[test]
+    fn test_parse_priority_default() {
+        assert!(matches!(parse_priority(None), Priority::Normal));
+        assert!(matches!(parse_priority(Some("normal")), Priority::Normal));
+        assert!(matches!(parse_priority(Some("invalid")), Priority::Normal));
+    }
+
+    #[test]
+    fn test_parse_status_valid() {
+        assert!(matches!(parse_status("idle"), Ok(Status::Idle)));
+        assert!(matches!(parse_status("working"), Ok(Status::Working)));
+        assert!(matches!(parse_status("blocked"), Ok(Status::Blocked)));
+        assert!(matches!(parse_status("done"), Ok(Status::Done)));
+    }
+
+    #[test]
+    fn test_parse_status_invalid() {
+        assert!(parse_status("invalid").is_err());
+        assert!(parse_status("").is_err());
+        assert!(parse_status("IDLE").is_err()); // case-sensitive
+    }
+}
+
 /// Run the MCP relay server (entry point for `ovld relay`)
 pub async fn serve() -> anyhow::Result<()> {
     let role = env::var("OVLD_ROLE")

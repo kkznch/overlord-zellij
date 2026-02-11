@@ -71,3 +71,90 @@ impl std::fmt::Display for Priority {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_valid_role_valid() {
+        for role in ALL_ROLES {
+            assert!(is_valid_role(role), "{} should be valid", role);
+        }
+    }
+
+    #[test]
+    fn test_is_valid_role_invalid() {
+        assert!(!is_valid_role("king"));
+        assert!(!is_valid_role(""));
+        assert!(!is_valid_role("Overlord")); // case-sensitive
+    }
+
+    #[test]
+    fn test_all_roles_count() {
+        assert_eq!(ALL_ROLES.len(), 6);
+    }
+
+    #[test]
+    fn test_priority_default_is_normal() {
+        assert!(matches!(Priority::default(), Priority::Normal));
+    }
+
+    #[test]
+    fn test_status_display() {
+        assert_eq!(format!("{}", Status::Idle), "idle");
+        assert_eq!(format!("{}", Status::Working), "working");
+        assert_eq!(format!("{}", Status::Blocked), "blocked");
+        assert_eq!(format!("{}", Status::Done), "done");
+    }
+
+    #[test]
+    fn test_priority_display() {
+        assert_eq!(format!("{}", Priority::Normal), "normal");
+        assert_eq!(format!("{}", Priority::Urgent), "urgent");
+    }
+
+    #[test]
+    fn test_message_json_roundtrip() {
+        let msg = Message {
+            id: "123_overlord".to_string(),
+            from: "overlord".to_string(),
+            to: "inferno".to_string(),
+            subject: "Test".to_string(),
+            body: "Hello".to_string(),
+            priority: Priority::Urgent,
+            timestamp: Utc::now(),
+            read: false,
+        };
+        let json = serde_json::to_string(&msg).unwrap();
+        let deserialized: Message = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.id, msg.id);
+        assert_eq!(deserialized.from, msg.from);
+        assert_eq!(deserialized.to, msg.to);
+        assert!(!deserialized.read);
+    }
+
+    #[test]
+    fn test_role_status_json_roundtrip() {
+        let status = RoleStatus {
+            role: "glacier".to_string(),
+            status: Status::Working,
+            task: Some("Defining types".to_string()),
+            updated_at: Utc::now(),
+        };
+        let json = serde_json::to_string(&status).unwrap();
+        let deserialized: RoleStatus = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.role, "glacier");
+        assert!(matches!(deserialized.status, Status::Working));
+        assert_eq!(deserialized.task.as_deref(), Some("Defining types"));
+    }
+
+    #[test]
+    fn test_priority_all_variants_serialize() {
+        for priority in [Priority::Normal, Priority::Urgent] {
+            let json = serde_json::to_string(&priority).unwrap();
+            let deserialized: Priority = serde_json::from_str(&json).unwrap();
+            assert_eq!(format!("{}", priority), format!("{}", deserialized));
+        }
+    }
+}

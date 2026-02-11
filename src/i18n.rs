@@ -94,3 +94,63 @@ pub fn tf(key: &str, lang: Lang, args: &[(&str, &str)]) -> String {
 pub fn path_str(path: &Path) -> String {
     format!("{:?}", path)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_t_known_key_en() {
+        assert_eq!(t("summon.starting", Lang::En), "Summoning the army at {cwd}...");
+        assert_eq!(t("status.active", Lang::En), "ACTIVE");
+        assert_eq!(t("init.success", Lang::En), "Global config deployed: {path}");
+    }
+
+    #[test]
+    fn test_t_known_key_ja() {
+        assert_eq!(t("summon.starting", Lang::Ja), "{cwd} で魔王軍を召喚中...");
+        assert_eq!(t("status.active", Lang::Ja), "展開中");
+        assert_eq!(t("init.success", Lang::Ja), "グローバル設定を展開しました: {path}");
+    }
+
+    #[test]
+    fn test_t_unknown_key() {
+        assert_eq!(t("nonexistent.key", Lang::En), "[unknown message]");
+        assert_eq!(t("nonexistent.key", Lang::Ja), "[unknown message]");
+        assert_eq!(t("", Lang::En), "[unknown message]");
+    }
+
+    #[test]
+    fn test_fmt_placeholder_substitution() {
+        let result = fmt("Hello {name}, welcome to {place}!", &[("name", "Alice"), ("place", "Wonderland")]);
+        assert_eq!(result, "Hello Alice, welcome to Wonderland!");
+    }
+
+    #[test]
+    fn test_fmt_no_args() {
+        let result = fmt("No placeholders here.", &[]);
+        assert_eq!(result, "No placeholders here.");
+    }
+
+    #[test]
+    fn test_tf_translate_and_format() {
+        let result = tf("summon.starting", Lang::En, &[("cwd", "/tmp/project")]);
+        assert_eq!(result, "Summoning the army at /tmp/project...");
+
+        let result_ja = tf("summon.starting", Lang::Ja, &[("cwd", "/tmp/project")]);
+        assert_eq!(result_ja, "/tmp/project で魔王軍を召喚中...");
+    }
+
+    #[test]
+    fn test_path_str() {
+        let path = PathBuf::from("/home/user/project");
+        let result = path_str(&path);
+        assert!(result.contains("/home/user/project"));
+    }
+
+    #[test]
+    fn test_lang_default_is_en() {
+        assert_eq!(Lang::default(), Lang::En);
+    }
+}
