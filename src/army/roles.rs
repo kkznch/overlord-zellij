@@ -14,7 +14,7 @@ impl Role {
     pub fn display_name(&self) -> &'static str {
         match self {
             Role::Overlord => "魔王 (Overlord)",
-            Role::Strategist => "闇の軍師 (Strategist)",
+            Role::Strategist => "軍師 (Strategist)",
             Role::Inferno => "業火の将 (Inferno)",
             Role::Glacier => "氷結の将 (Glacier)",
             Role::Shadow => "常闇の将 (Shadow)",
@@ -63,7 +63,7 @@ mod tests {
     #[test]
     fn test_display_name() {
         assert_eq!(Role::Overlord.display_name(), "魔王 (Overlord)");
-        assert_eq!(Role::Strategist.display_name(), "闇の軍師 (Strategist)");
+        assert_eq!(Role::Strategist.display_name(), "軍師 (Strategist)");
         assert_eq!(Role::Inferno.display_name(), "業火の将 (Inferno)");
         assert_eq!(Role::Glacier.display_name(), "氷結の将 (Glacier)");
         assert_eq!(Role::Shadow.display_name(), "常闇の将 (Shadow)");
