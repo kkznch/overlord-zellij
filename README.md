@@ -59,19 +59,54 @@ Glacier (Types) → Inferno (Logic) → Shadow (Tests)
 
 This distributes workload across Claude instances and enables efficient development leveraging each one's specialty.
 
+## Architecture
+
+Each Claude instance communicates through an MCP relay server backed by file-based message storage:
+
+```
+┌─ Zellij Session ──────────────────────────────────┐
+│                                                    │
+│  [Overlord]   ←─ MCP ─→  ovld relay               │
+│  [Strategist] ←─ MCP ─→  ovld relay               │
+│  [Inferno]    ←─ MCP ─→  ovld relay               │
+│  [Glacier]    ←─ MCP ─→  ovld relay               │
+│  [Shadow]     ←─ MCP ─→  ovld relay               │
+│  [Storm]      ←─ MCP ─→  ovld relay               │
+│                    ↕                               │
+│          ~/.config/ovld/relay/                     │
+│          ├── inbox/{role}/     (messages)           │
+│          ├── status/{role}.json                    │
+│          └── pending/{role}    (notify flags)      │
+│                    ↕                               │
+│      zellij pipe → WASM plugin → pane STDIN        │
+│      (auto-notification on new messages)           │
+└────────────────────────────────────────────────────┘
+```
+
+**MCP Tools** available to each Claude instance:
+| Tool | Description |
+|------|-------------|
+| `send_message` | Send a message to another role's inbox |
+| `check_inbox` | Read unread messages (optionally mark as read) |
+| `get_status` | Check a role's current status (or all roles) |
+| `update_status` | Update own status (idle / working / blocked / done) |
+| `broadcast` | Send a message to all other roles |
+
 ## Layout Structure
 
 The Zellij session consists of 3 tabs:
 
 ```
 ┌─────────────────────────────────────────────┐
-│ Tab 1: command                              │
+│ Tab 1: command (default focus)              │
 │ ┌──────────┬────────────────────────────────┤
 │ │ Overlord │        Strategist              │
 │ │  (30%)   │          (70%)                 │
-│ └──────────┴────────────────────────────────┤
+│ ├──────────┴────────────────────────────────┤
+│ │ [notify plugin] (borderless, 1 line)      │
+│ └───────────────────────────────────────────┤
 ├─────────────────────────────────────────────┤
-│ Tab 2: battlefield (default focus)          │
+│ Tab 2: battlefield                          │
 │ ┌───────────────────────────────────────────┤
 │ │                 Inferno                   │
 │ │              (full size)                  │
@@ -87,6 +122,8 @@ The Zellij session consists of 3 tabs:
 - **command**: Headquarters. Requirements definition and task management
 - **battlefield**: Main battlefield. Primary implementation work
 - **support**: Support troops. Architecture, testing, documentation
+
+The notify plugin is a minimal WASM pane that routes inter-pane notifications without switching focus.
 
 ## Requirements
 
@@ -106,23 +143,24 @@ cargo install --path .
 # Summon the Demon Army
 ovld summon
 
+# Summon with debug logging
+ovld summon --debug
+
 # Check army status
 ovld status
 
 # Unsummon the Demon Army
 ovld unsummon
 
+# Force unsummon without confirmation
+ovld unsummon --force
+
 # Deploy/redeploy global config
 ovld init
 ovld init --force   # Overwrite existing config
 ```
 
-### Options
-
-```bash
-# Force unsummon without confirmation
-ovld unsummon --force
-```
+Debug logs are written to `~/.config/ovld/logs/`.
 
 ## Configuration
 
@@ -157,20 +195,40 @@ When `ovld summon` is executed:
 3. Auto-creates default rituals in global config on first run
 
 ### 2. Dynamic Layout Generation
-1. Generates KDL layout dynamically with absolute paths to ritual files
-2. Each pane starts `claude --system-prompt-file <ritual_path>`
-3. Creates temporary KDL file that's cleaned up after session ends
+1. Generates a KDL layout dynamically with absolute paths to ritual files and MCP configs
+2. Each pane starts `claude --system-prompt-file <ritual> --mcp-config <mcp_config>`
+3. MCP relay tools are auto-approved via `--allowedTools "mcp__ovld-relay__*"`
+4. A WASM notify plugin pane is included for inter-pane notification routing
+5. Creates a temporary KDL file that's cleaned up after session ends
 
 ### 3. Session Management
-1. Creates new Zellij session with generated layout
-2. CLI blocks until Zellij session ends (user exits or detaches)
-3. Automatically cleans up EXITED sessions on exit
+1. Creates a new Zellij session with the generated layout
+2. CLI blocks until the Zellij session ends (user exits or detaches)
+3. Automatically cleans up EXITED sessions, metadata, and relay data on exit
 
-### 4. Operational Flow
+### 4. MCP Relay Communication
+Each Claude pane spawns an `ovld relay` process as its MCP server. The relay uses a shared file-based store:
+
+- **Inbox**: Messages are written as JSON files to `~/.config/ovld/relay/inbox/{role}/`
+- **Status**: Each role's status is stored in `~/.config/ovld/relay/status/{role}.json`
+- **Pending**: Flag files in `~/.config/ovld/relay/pending/` track which roles have unread messages
+
+Environment variables passed to each relay: `OVLD_ROLE`, `OVLD_RELAY_DIR`, `OVLD_SESSION`, `OVLD_PLUGIN_PATH`.
+
+### 5. Auto-Notification
+When a message is sent via `send_message`:
+1. The message is saved to the target role's inbox
+2. A pending flag is set for the target role (deduplicated — only once per check cycle)
+3. `zellij pipe` sends a JSON payload to the WASM notify plugin (runs in a background thread)
+4. The plugin writes a notification text directly to the target pane's STDIN
+5. The receiving Claude instance sees the notification and calls `check_inbox` to retrieve messages
+
+### 6. Operational Flow
 1. Issue requirements to Overlord in **command** tab
 2. Strategist decomposes tasks and directs Four Heavenly Kings
 3. **Inferno** does main implementation in **battlefield** tab
 4. **Glacier/Shadow/Storm** provide support in **support** tab
+5. Roles communicate autonomously via MCP relay tools
 
 ## Directory Structure
 
@@ -178,11 +236,20 @@ When `ovld summon` is executed:
 overlord-zellij/
 ├── src/
 │   ├── main.rs           # CLI entry point
-│   ├── config.rs         # Config & ritual resolution
-│   ├── layout.rs         # Dynamic KDL generation
-│   ├── commands/         # summon/unsummon/status commands
+│   ├── lib.rs            # Library exports & constants
+│   ├── config.rs         # Config, ritual resolution, MCP config generation
+│   ├── layout.rs         # Dynamic KDL layout generation
+│   ├── logging.rs        # Debug logging (--debug)
+│   ├── i18n.rs           # i18n (en/ja)
+│   ├── commands/         # summon / unsummon / status / init
 │   ├── zellij/           # Zellij session management
-│   └── army/             # Role definitions
+│   ├── army/             # Role definitions & icons
+│   └── relay/            # MCP relay server
+│       ├── server.rs     # 5 MCP tools (send_message, check_inbox, etc.)
+│       ├── store.rs      # File-based message persistence
+│       ├── notify.rs     # Zellij pipe notification
+│       └── types.rs      # Message, RoleStatus, Priority types
+├── plugin/               # Zellij WASM plugin (pane notification)
 ├── rituals/              # System prompts for each role
 │   ├── overlord.md
 │   ├── strategist.md

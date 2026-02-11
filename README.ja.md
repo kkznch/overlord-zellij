@@ -33,7 +33,7 @@ Zellij上で複数のClaudeインスタンスを「魔王軍」として組織�
 - **魔王 (Overlord)** - ユーザーの曖昧な要望を技術仕様・要件定義に変換
 - **軍師 (Strategist)** - タスクを分解し、四天王へ配分・指揮
 
-### 四天王（Shitennou / Execution Layer）
+### 四天王（Execution Layer）
 | 名前 | 専門領域 | 役割 |
 |------|----------|------|
 | 氷結の将 (Glacier) | Arch & Refactor | 型・構造を先行定義、リファクタリング |
@@ -57,22 +57,57 @@ Glacier (型定義) → Inferno (ロジック実装) → Shadow (テスト)
 
 これにより各Claudeの負荷を分散し、専門性を活かした効率的な開発が可能。
 
+## アーキテクチャ
+
+各Claudeインスタンスはファイルベースのメッセージストアを持つMCPリレーサーバーを通じて通信する：
+
+```
+┌─ Zellij Session ──────────────────────────────────┐
+│                                                    │
+│  [Overlord]   ←─ MCP ─→  ovld relay               │
+│  [Strategist] ←─ MCP ─→  ovld relay               │
+│  [Inferno]    ←─ MCP ─→  ovld relay               │
+│  [Glacier]    ←─ MCP ─→  ovld relay               │
+│  [Shadow]     ←─ MCP ─→  ovld relay               │
+│  [Storm]      ←─ MCP ─→  ovld relay               │
+│                    ↕                               │
+│          ~/.config/ovld/relay/                     │
+│          ├── inbox/{role}/     (メッセージ)          │
+│          ├── status/{role}.json                    │
+│          └── pending/{role}    (通知フラグ)          │
+│                    ↕                               │
+│      zellij pipe → WASMプラグイン → ペインSTDIN      │
+│      (新着メッセージ時に自動通知)                      │
+└────────────────────────────────────────────────────┘
+```
+
+各Claudeインスタンスが使える **MCPツール**：
+| ツール | 説明 |
+|--------|------|
+| `send_message` | 他のロールの受信箱にメッセージを送信 |
+| `check_inbox` | 未読メッセージを取得（任意で既読化） |
+| `get_status` | ロールの現在のステータスを確認（全員分も可） |
+| `update_status` | 自分のステータスを更新（idle / working / blocked / done） |
+| `broadcast` | 他の全ロールにメッセージを一斉送信 |
+
 ## レイアウト構成
 
 Zellijセッションは3つのタブで構成：
 
 ```
 ┌─────────────────────────────────────────────┐
-│ Tab 1: command                              │
+│ Tab 1: command（デフォルトフォーカス）          │
 │ ┌──────────┬────────────────────────────────┤
 │ │ Overlord │        Strategist              │
 │ │  (30%)   │          (70%)                 │
-│ └──────────┴────────────────────────────────┤
+│ ├──────────┴────────────────────────────────┤
+│ │ [通知プラグイン] (borderless, 1行)          │
+│ └───────────────────────────────────────────┤
 ├─────────────────────────────────────────────┤
-│ Tab 2: battlefield (default focus)          │
+│ Tab 2: battlefield                          │
 │ ┌───────────────────────────────────────────┤
 │ │                 Inferno                   │
-│ │             (フルサイズ)                   │
+│ │             (フルサイズ)                    │
 │ └───────────────────────────────────────────┤
 ├─────────────────────────────────────────────┤
 │ Tab 3: support                              │
@@ -85,6 +120,8 @@ Zellijセッションは3つのタブで構成：
 - **command**: 司令部。要件定義とタスク管理
 - **battlefield**: 主戦場。メインの実装作業
 - **support**: 補助部隊。アーキテクチャ・テスト・ドキュメント
+
+通知プラグインはフォーカスを切り替えずにペイン間通知をルーティングする最小限のWASMペイン。
 
 ## 必要環境
 
@@ -104,23 +141,24 @@ cargo install --path .
 # 魔王軍を召喚
 ovld summon
 
+# デバッグログ付きで召喚
+ovld summon --debug
+
 # 軍勢の状況確認
 ovld status
 
 # 魔王軍を還送
 ovld unsummon
 
+# 確認なしで還送
+ovld unsummon --force
+
 # グローバル設定を（再）展開
 ovld init
 ovld init --force   # 既存設定を上書き
 ```
 
-### オプション
-
-```bash
-# 確認なしで還送
-ovld unsummon --force
-```
+デバッグログは `~/.config/ovld/logs/` に出力される。
 
 ## 設定
 
@@ -155,20 +193,40 @@ cp -r ~/.config/ovld/rituals ./rituals
 3. 初回実行時はデフォルト儀式を自動作成
 
 ### 2. 動的レイアウト生成
-1. 儀式ファイルへの絶対パスを含むKDLレイアウトを動的生成
-2. 各ペインで `claude --system-prompt-file <ritual_path>` を起動
-3. セッション終了後にテンポラリKDLファイルを自動クリーンアップ
+1. 儀式ファイルとMCP設定への絶対パスを含むKDLレイアウトを動的生成
+2. 各ペインで `claude --system-prompt-file <ritual> --mcp-config <mcp_config>` を起動
+3. MCPリレーツールは `--allowedTools "mcp__ovld-relay__*"` で自動承認
+4. ペイン間通知ルーティング用のWASM通知プラグインペインを含む
+5. セッション終了後にテンポラリKDLファイルを自動クリーンアップ
 
 ### 3. セッション管理
-1. 魔王軍レイアウトで新しいZellijセッションを作成
+1. 生成したレイアウトで新しいZellijセッションを作成
 2. CLIはZellijセッションが終了するまでブロック
-3. 終了時にEXITEDセッションを自動クリーンアップ
+3. 終了時にEXITEDセッション・メタデータ・リレーデータを自動クリーンアップ
 
-### 4. 運用フロー
+### 4. MCPリレー通信
+各Claudeペインが `ovld relay` プロセスをMCPサーバーとして起動。リレーは共有ファイルベースストアを使用：
+
+- **受信箱**: メッセージはJSONファイルとして `~/.config/ovld/relay/inbox/{role}/` に保存
+- **ステータス**: 各ロールの状態が `~/.config/ovld/relay/status/{role}.json` に格納
+- **保留通知**: `~/.config/ovld/relay/pending/` のフラグファイルで未読メッセージを持つロールを追跡
+
+各リレーに渡される環境変数: `OVLD_ROLE`, `OVLD_RELAY_DIR`, `OVLD_SESSION`, `OVLD_PLUGIN_PATH`
+
+### 5. 自動通知
+`send_message` でメッセージが送信されると：
+1. メッセージがターゲットロールの受信箱に保存される
+2. ターゲットロールにpendingフラグが設定される（重複排除 — チェックサイクルごとに1回のみ）
+3. `zellij pipe` がJSONペイロードをWASM通知プラグインに送信（バックグラウンドスレッドで実行）
+4. プラグインがターゲットペインのSTDINに通知テキストを直接書き込む
+5. 受信側のClaudeインスタンスが通知を確認し、`check_inbox` でメッセージを取得
+
+### 6. 運用フロー
 1. **command** タブで魔王に要件を伝える
 2. 軍師がタスクを分解し、四天王に指示
-3. **battlefield** タブで Inferno がメイン実装
-4. **support** タブで Glacier/Shadow/Storm が支援
+3. **battlefield** タブで **Inferno** がメイン実装
+4. **support** タブで **Glacier/Shadow/Storm** が支援
+5. ロール間はMCPリレーツールで自律的に通信
 
 ## ディレクトリ構成
 
@@ -176,9 +234,20 @@ cp -r ~/.config/ovld/rituals ./rituals
 overlord-zellij/
 ├── src/
 │   ├── main.rs           # CLIエントリーポイント
-│   ├── commands/         # summon/unsummon/status コマンド
-│   ├── zellij/           # Zellijセッション・ペイン操作
-│   └── army/             # 役職定義・儀式注入
+│   ├── lib.rs            # ライブラリエクスポート・定数
+│   ├── config.rs         # 設定、儀式解決、MCP設定生成
+│   ├── layout.rs         # 動的KDLレイアウト生成
+│   ├── logging.rs        # デバッグログ (--debug)
+│   ├── i18n.rs           # 多言語対応 (en/ja)
+│   ├── commands/         # summon / unsummon / status / init
+│   ├── zellij/           # Zellijセッション管理
+│   ├── army/             # 役職定義・アイコン
+│   └── relay/            # MCPリレーサーバー
+│       ├── server.rs     # 5つのMCPツール (send_message, check_inbox 等)
+│       ├── store.rs      # ファイルベースのメッセージ永続化
+│       ├── notify.rs     # Zellij pipe通知
+│       └── types.rs      # Message, RoleStatus, Priority 型定義
+├── plugin/               # Zellij WASMプラグイン（ペイン通知）
 ├── rituals/              # 各役職のシステムプロンプト
 │   ├── overlord.md
 │   ├── strategist.md
@@ -199,5 +268,5 @@ overlord-zellij/
 - `i18n/` - 多言語対応（英語/日本語）仕様
 - `ritual-injection/` - プロンプト注入仕様
 - `workflow-protocol/` - 四天王の連動プロトコル
-- `mcp-relay/` - MCP中継サーバー仕様
+- `mcp-relay/` - MCPリレーサーバー仕様
 - `auto-notification/` - ペイン間自動通知仕様
