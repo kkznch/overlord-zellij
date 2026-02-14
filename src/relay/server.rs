@@ -11,7 +11,7 @@ use serde::Deserialize;
 
 use super::notify;
 use super::store::MessageStore;
-use super::types::{is_valid_role, Priority, Status, ALL_ROLES};
+use super::types::{allowed_targets, is_allowed_route, is_valid_role, Priority, Status, ALL_ROLES};
 use crate::logging;
 use crate::SESSION_NAME;
 
@@ -103,7 +103,7 @@ impl RelayService {
     }
 
     #[tool(
-        description = "Send a message to another role. The target role will be automatically notified via their Zellij pane."
+        description = "Send a message to an allowed role. Routes: overlord <-> strategist <-> shitennoh. The target will be auto-notified."
     )]
     async fn send_message(
         &self,
@@ -118,6 +118,15 @@ impl RelayService {
         if req.to == self.role {
             return Err(McpError::invalid_params(
                 "Cannot send message to yourself",
+                None,
+            ));
+        }
+        if !is_allowed_route(&self.role, &req.to) {
+            return Err(McpError::invalid_params(
+                format!(
+                    "Route {} -> {} is not allowed. You can send to: {:?}",
+                    self.role, req.to, allowed_targets(&self.role)
+                ),
                 None,
             ));
         }
@@ -254,7 +263,7 @@ impl RelayService {
     }
 
     #[tool(
-        description = "Broadcast a message to all other roles. Use sparingly - typically only for Overlord announcements or Strategist task assignments."
+        description = "Broadcast a message to all roles you are allowed to contact. Routes: overlord <-> strategist <-> shitennoh."
     )]
     async fn broadcast(
         &self,
@@ -263,10 +272,7 @@ impl RelayService {
         let priority = parse_priority(req.priority.as_deref());
         let mut sent_to = Vec::new();
 
-        for role in ALL_ROLES {
-            if *role == self.role {
-                continue;
-            }
+        for role in allowed_targets(&self.role) {
             self.store
                 .send_message(&self.role, role, &req.subject, &req.body, priority.clone())
                 .map_err(|e| {
@@ -285,7 +291,7 @@ impl RelayService {
                     logging::error(&format!("broadcast notify failed: to={} err={}", role, e));
                 }
             }
-            sent_to.push(*role);
+            sent_to.push(role);
         }
 
         Ok(CallToolResult::success(vec![Content::text(format!(

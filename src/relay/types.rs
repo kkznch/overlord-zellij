@@ -10,8 +10,35 @@ pub const ALL_ROLES: &[&str] = &[
     "storm",
 ];
 
+const SHITENNOH: &[&str] = &["inferno", "glacier", "shadow", "storm"];
+
+fn is_shitennoh(role: &str) -> bool {
+    SHITENNOH.contains(&role)
+}
+
 pub fn is_valid_role(role: &str) -> bool {
     ALL_ROLES.contains(&role)
+}
+
+/// Check if a message route is allowed under the chain-of-command policy.
+/// Only overlord <-> strategist <-> shitennoh routes are permitted.
+pub fn is_allowed_route(from: &str, to: &str) -> bool {
+    match (from, to) {
+        ("overlord", "strategist") | ("strategist", "overlord") => true,
+        ("strategist", to) if is_shitennoh(to) => true,
+        (from, "strategist") if is_shitennoh(from) => true,
+        _ => false,
+    }
+}
+
+/// Return the list of roles this role is allowed to send messages to.
+pub fn allowed_targets(role: &str) -> Vec<&'static str> {
+    match role {
+        "overlord" => vec!["strategist"],
+        "strategist" => vec!["overlord", "inferno", "glacier", "shadow", "storm"],
+        r if is_shitennoh(r) => vec!["strategist"],
+        _ => vec![],
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -156,5 +183,49 @@ mod tests {
             let deserialized: Priority = serde_json::from_str(&json).unwrap();
             assert_eq!(format!("{}", priority), format!("{}", deserialized));
         }
+    }
+
+    #[test]
+    fn test_allowed_route_overlord_strategist() {
+        assert!(is_allowed_route("overlord", "strategist"));
+        assert!(is_allowed_route("strategist", "overlord"));
+    }
+
+    #[test]
+    fn test_allowed_route_strategist_shitennoh() {
+        for role in ["inferno", "glacier", "shadow", "storm"] {
+            assert!(is_allowed_route("strategist", role), "strategist -> {} should be allowed", role);
+            assert!(is_allowed_route(role, "strategist"), "{} -> strategist should be allowed", role);
+        }
+    }
+
+    #[test]
+    fn test_forbidden_route_overlord_shitennoh() {
+        for role in ["inferno", "glacier", "shadow", "storm"] {
+            assert!(!is_allowed_route("overlord", role), "overlord -> {} should be forbidden", role);
+            assert!(!is_allowed_route(role, "overlord"), "{} -> overlord should be forbidden", role);
+        }
+    }
+
+    #[test]
+    fn test_forbidden_route_shitennoh_to_shitennoh() {
+        let shitennoh = ["inferno", "glacier", "shadow", "storm"];
+        for from in &shitennoh {
+            for to in &shitennoh {
+                if from != to {
+                    assert!(!is_allowed_route(from, to), "{} -> {} should be forbidden", from, to);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_allowed_targets() {
+        assert_eq!(allowed_targets("overlord"), vec!["strategist"]);
+        assert_eq!(allowed_targets("strategist"), vec!["overlord", "inferno", "glacier", "shadow", "storm"]);
+        for role in ["inferno", "glacier", "shadow", "storm"] {
+            assert_eq!(allowed_targets(role), vec!["strategist"], "{} should only target strategist", role);
+        }
+        assert!(allowed_targets("unknown").is_empty());
     }
 }
