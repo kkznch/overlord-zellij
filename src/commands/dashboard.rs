@@ -9,25 +9,13 @@ use crossterm::ExecutableCommand;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Cell, Paragraph, Row, Table};
 
+use crate::army::roles::ALL;
 use crate::config;
 use crate::i18n::{self, Lang};
 use crate::relay::store::MessageStore;
-use crate::relay::types::{Status, ALL_ROLES};
+use crate::relay::types::Status;
 
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
-
-fn role_icon(role: &str) -> &'static str {
-    // All emoji are from supplementary planes (U+1xxxx) = consistently 2-cell wide
-    match role {
-        "overlord" => "\u{1F451}",     // 👑
-        "strategist" => "\u{1F9E0}",   // 🧠
-        "inferno" => "\u{1F525}",      // 🔥
-        "glacier" => "\u{1F9CA}",      // 🧊
-        "shadow" => "\u{1F311}",       // 🌑
-        "storm" => "\u{1F4A8}",        // 💨
-        _ => "  ",
-    }
-}
 
 fn status_symbol(status: &Status) -> &'static str {
     match status {
@@ -76,7 +64,7 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: &Messa
                 .direction(Direction::Vertical)
                 .constraints([
                     Constraint::Length(3),
-                    Constraint::Length((ALL_ROLES.len() as u16) + 2),
+                    Constraint::Length((ALL.len() as u16) + 2),
                     Constraint::Length(3),
                     Constraint::Min(0),
                     Constraint::Length(1),
@@ -108,11 +96,11 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: &Messa
                         Status::Done => Style::default().fg(Color::Cyan),
                         Status::Idle => Style::default().fg(Color::DarkGray),
                     };
-                    let pending = if store.has_pending(&s.role) { " *" } else { "" };
+                    let pending = if store.has_pending(s.role.as_str()) { " *" } else { "" };
                     let role_key = format!("role.{}", s.role);
                     let role_name = i18n::t(&role_key, lang);
                     Row::new(vec![
-                        Cell::from(format!("{} {}{}", role_icon(&s.role), role_name, pending)),
+                        Cell::from(format!("{} {}{}", s.role.icon(), role_name, pending)),
                         Cell::from(format!("{} {}", status_symbol(&s.status), s.status))
                             .style(status_style),
                         Cell::from(s.task.clone().unwrap_or_default()),
@@ -135,10 +123,10 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: &Messa
 
             // Summary
             let working_count = statuses.iter().filter(|s| matches!(s.status, Status::Working)).count();
-            let pending_roles: Vec<&str> = ALL_ROLES
+            let pending_roles: Vec<&str> = ALL
                 .iter()
-                .filter(|r| store.has_pending(r))
-                .copied()
+                .filter(|r| store.has_pending(r.as_str()))
+                .map(|r| r.as_str())
                 .collect();
             let pending_text = if pending_roles.is_empty() {
                 String::new()
@@ -148,7 +136,7 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: &Messa
             let summary = Paragraph::new(format!(
                 " Workers: {}/{}{}",
                 working_count,
-                ALL_ROLES.len(),
+                ALL.len(),
                 pending_text,
             ))
             .style(Style::default().fg(Color::White))

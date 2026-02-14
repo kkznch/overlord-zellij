@@ -3,7 +3,9 @@ use chrono::Utc;
 use std::fs;
 use std::path::PathBuf;
 
-use super::types::{Message, Priority, RoleStatus, Status, ALL_ROLES};
+use crate::army::roles::{Role, ALL};
+
+use super::types::{Message, Priority, RoleStatus, Status};
 
 pub struct MessageStore {
     base_dir: PathBuf,
@@ -16,8 +18,8 @@ impl MessageStore {
 
     /// Initialize directory structure for all roles
     pub fn init(&self) -> Result<()> {
-        for role in ALL_ROLES {
-            fs::create_dir_all(self.inbox_dir(role))
+        for role in ALL {
+            fs::create_dir_all(self.inbox_dir(role.as_str()))
                 .with_context(|| format!("Failed to create inbox for {}", role))?;
         }
         fs::create_dir_all(self.status_dir())
@@ -26,10 +28,10 @@ impl MessageStore {
             .context("Failed to create pending directory")?;
 
         // Initialize status for all roles
-        for role in ALL_ROLES {
+        for role in ALL {
             let status_file = self.status_dir().join(format!("{}.json", role));
             if !status_file.exists() {
-                self.update_status(role, Status::Idle, None)?;
+                self.update_status(*role, Status::Idle, None)?;
             }
         }
         Ok(())
@@ -50,8 +52,8 @@ impl MessageStore {
     /// Send a message to a role's inbox
     pub fn send_message(
         &self,
-        from: &str,
-        to: &str,
+        from: Role,
+        to: Role,
         subject: &str,
         body: &str,
         priority: Priority,
@@ -60,8 +62,8 @@ impl MessageStore {
         let id = format!("{}_{}", timestamp.timestamp_millis(), from);
         let msg = Message {
             id: id.clone(),
-            from: from.to_string(),
-            to: to.to_string(),
+            from,
+            to,
             subject: subject.to_string(),
             body: body.to_string(),
             priority,
@@ -69,7 +71,7 @@ impl MessageStore {
             read: false,
         };
 
-        let inbox = self.inbox_dir(to);
+        let inbox = self.inbox_dir(to.as_str());
         fs::create_dir_all(&inbox)?;
         let file_path = inbox.join(format!("{}.json", id));
         let content = serde_json::to_string_pretty(&msg)?;
@@ -123,9 +125,9 @@ impl MessageStore {
     }
 
     /// Update a role's status
-    pub fn update_status(&self, role: &str, status: Status, task: Option<&str>) -> Result<()> {
+    pub fn update_status(&self, role: Role, status: Status, task: Option<&str>) -> Result<()> {
         let status_data = RoleStatus {
-            role: role.to_string(),
+            role,
             status,
             task: task.map(|s| s.to_string()),
             updated_at: Utc::now(),
@@ -150,8 +152,8 @@ impl MessageStore {
     /// Get all roles' statuses
     pub fn get_all_statuses(&self) -> Result<Vec<RoleStatus>> {
         let mut statuses = Vec::new();
-        for role in ALL_ROLES {
-            if let Some(status) = self.get_status(role)? {
+        for role in ALL {
+            if let Some(status) = self.get_status(role.as_str())? {
                 statuses.push(status);
             }
         }
@@ -167,8 +169,8 @@ impl MessageStore {
     pub fn recent_messages(&self, limit: usize) -> Result<Vec<Message>> {
         let mut all_messages = Vec::new();
 
-        for role in ALL_ROLES {
-            let inbox = self.inbox_dir(role);
+        for role in ALL {
+            let inbox = self.inbox_dir(role.as_str());
             if !inbox.exists() {
                 continue;
             }
@@ -217,8 +219,8 @@ mod tests {
         store.init().unwrap();
 
         // Check inbox dirs for all roles
-        for role in ALL_ROLES {
-            assert!(dir.path().join("inbox").join(role).is_dir());
+        for role in ALL {
+            assert!(dir.path().join("inbox").join(role.as_str()).is_dir());
         }
         assert!(dir.path().join("status").is_dir());
         assert!(dir.path().join("pending").is_dir());
@@ -230,8 +232,8 @@ mod tests {
         let store = MessageStore::new(dir.path().to_path_buf());
         store.init().unwrap();
 
-        for role in ALL_ROLES {
-            let status = store.get_status(role).unwrap().unwrap();
+        for role in ALL {
+            let status = store.get_status(role.as_str()).unwrap().unwrap();
             assert!(matches!(status.status, Status::Idle));
         }
     }
@@ -239,15 +241,15 @@ mod tests {
     #[test]
     fn test_status_update_and_get_roundtrip() {
         let (_dir, store) = test_store();
-        store.update_status("glacier", Status::Working, Some("Defining types")).unwrap();
+        store.update_status(Role::Glacier, Status::Working, Some("Defining types")).unwrap();
 
         let status = store.get_status("glacier").unwrap().unwrap();
-        assert_eq!(status.role, "glacier");
+        assert_eq!(status.role, Role::Glacier);
         assert!(matches!(status.status, Status::Working));
         assert_eq!(status.task.as_deref(), Some("Defining types"));
 
         // Update again
-        store.update_status("glacier", Status::Done, None).unwrap();
+        store.update_status(Role::Glacier, Status::Done, None).unwrap();
         let status = store.get_status("glacier").unwrap().unwrap();
         assert!(matches!(status.status, Status::Done));
         assert!(status.task.is_none());
@@ -257,9 +259,9 @@ mod tests {
     fn test_multiple_messages_all_returned() {
         let (_dir, store) = test_store();
 
-        store.send_message("overlord", "inferno", "Task A", "body a", Priority::Normal).unwrap();
-        store.send_message("strategist", "inferno", "Task B", "body b", Priority::Normal).unwrap();
-        store.send_message("glacier", "inferno", "Task C", "body c", Priority::Normal).unwrap();
+        store.send_message(Role::Overlord, Role::Inferno, "Task A", "body a", Priority::Normal).unwrap();
+        store.send_message(Role::Strategist, Role::Inferno, "Task B", "body b", Priority::Normal).unwrap();
+        store.send_message(Role::Glacier, Role::Inferno, "Task C", "body c", Priority::Normal).unwrap();
 
         let messages = store.check_inbox("inferno", false).unwrap();
         assert_eq!(messages.len(), 3);
@@ -276,8 +278,8 @@ mod tests {
 
         store
             .send_message(
-                "strategist",
-                "inferno",
+                Role::Strategist,
+                Role::Inferno,
                 "Implement auth",
                 "See types.rs",
                 Priority::Normal,
@@ -286,7 +288,7 @@ mod tests {
 
         let messages = store.check_inbox("inferno", true).unwrap();
         assert_eq!(messages.len(), 1);
-        assert_eq!(messages[0].from, "strategist");
+        assert_eq!(messages[0].from, Role::Strategist);
         assert_eq!(messages[0].subject, "Implement auth");
 
         // After marking read, should be empty
@@ -299,12 +301,12 @@ mod tests {
         let (_dir, store) = test_store();
 
         store
-            .send_message("glacier", "inferno", "Types ready", "types.rs", Priority::Normal)
+            .send_message(Role::Glacier, Role::Inferno, "Types ready", "types.rs", Priority::Normal)
             .unwrap();
         store
             .send_message(
-                "strategist",
-                "inferno",
+                Role::Strategist,
+                Role::Inferno,
                 "Start impl",
                 "Go ahead",
                 Priority::Urgent,
@@ -332,11 +334,11 @@ mod tests {
         let (_dir, store) = test_store();
 
         store
-            .update_status("inferno", Status::Working, Some("Implementing auth"))
+            .update_status(Role::Inferno, Status::Working, Some("Implementing auth"))
             .unwrap();
 
         let status = store.get_status("inferno").unwrap().unwrap();
-        assert_eq!(status.role, "inferno");
+        assert_eq!(status.role, Role::Inferno);
         assert!(matches!(status.status, Status::Working));
         assert_eq!(status.task.as_deref(), Some("Implementing auth"));
     }
@@ -375,9 +377,9 @@ mod tests {
     fn test_recent_messages() {
         let (_dir, store) = test_store();
 
-        store.send_message("overlord", "inferno", "Task 1", "body1", Priority::Normal).unwrap();
-        store.send_message("strategist", "glacier", "Task 2", "body2", Priority::Normal).unwrap();
-        store.send_message("overlord", "shadow", "Task 3", "body3", Priority::Urgent).unwrap();
+        store.send_message(Role::Overlord, Role::Inferno, "Task 1", "body1", Priority::Normal).unwrap();
+        store.send_message(Role::Strategist, Role::Glacier, "Task 2", "body2", Priority::Normal).unwrap();
+        store.send_message(Role::Overlord, Role::Shadow, "Task 3", "body3", Priority::Urgent).unwrap();
 
         let recent = store.recent_messages(10).unwrap();
         assert_eq!(recent.len(), 3);

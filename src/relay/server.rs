@@ -11,7 +11,8 @@ use serde::Deserialize;
 
 use super::notify;
 use super::store::MessageStore;
-use super::types::{allowed_targets, is_allowed_route, is_valid_role, Priority, Status, ALL_ROLES};
+use super::types::{Priority, Status};
+use crate::army::roles::Role;
 use crate::logging;
 use crate::SESSION_NAME;
 
@@ -63,7 +64,7 @@ pub struct BroadcastRequest {
 
 #[derive(Clone)]
 pub struct RelayService {
-    role: String,
+    role: Role,
     store: Arc<MessageStore>,
     session_name: String,
     plugin_path: String,
@@ -92,7 +93,7 @@ fn parse_status(s: &str) -> Result<Status, McpError> {
 
 #[tool_router]
 impl RelayService {
-    pub fn new(role: String, store: Arc<MessageStore>, session_name: String, plugin_path: String) -> Self {
+    pub fn new(role: Role, store: Arc<MessageStore>, session_name: String, plugin_path: String) -> Self {
         Self {
             role,
             store,
@@ -109,56 +110,54 @@ impl RelayService {
         &self,
         Parameters(req): Parameters<SendMessageRequest>,
     ) -> Result<CallToolResult, McpError> {
-        if !is_valid_role(&req.to) {
-            return Err(McpError::invalid_params(
-                format!("Invalid role '{}'. Valid: {:?}", req.to, ALL_ROLES),
-                None,
-            ));
-        }
-        if req.to == self.role {
+        let target: Role = req.to.parse().map_err(|e: String| {
+            McpError::invalid_params(e, None)
+        })?;
+        if target == self.role {
             return Err(McpError::invalid_params(
                 "Cannot send message to yourself",
                 None,
             ));
         }
-        if !is_allowed_route(&self.role, &req.to) {
+        if !self.role.can_send_to(target) {
             return Err(McpError::invalid_params(
                 format!(
                     "Route {} -> {} is not allowed. You can send to: {:?}",
-                    self.role, req.to, allowed_targets(&self.role)
+                    self.role, target,
+                    self.role.allowed_targets().iter().map(|r| r.as_str()).collect::<Vec<_>>()
                 ),
                 None,
             ));
         }
 
-        logging::debug(&format!("send_message: from={} to={} subject={}", self.role, req.to, req.subject));
+        logging::debug(&format!("send_message: from={} to={} subject={}", self.role, target, req.subject));
 
         let priority = parse_priority(req.priority.as_deref());
         self.store
-            .send_message(&self.role, &req.to, &req.subject, &req.body, priority)
+            .send_message(self.role, target, &req.subject, &req.body, priority)
             .map_err(|e| McpError::internal_error(format!("Failed to send: {}", e), None))?;
 
         // Auto-trigger: set pending flag and inject notification if needed
         let should_notify = self
             .store
-            .set_pending(&req.to)
+            .set_pending(target.as_str())
             .map_err(|e| {
                 McpError::internal_error(format!("Failed to set pending: {}", e), None)
             })?;
 
         if should_notify {
-            if let Err(e) = notify::notify_pane(&self.session_name, &req.to, &self.role, &self.plugin_path) {
-                logging::error(&format!("notify failed: from={} to={} err={}", self.role, req.to, e));
+            if let Err(e) = notify::notify_pane(&self.session_name, target, self.role, &self.plugin_path) {
+                logging::error(&format!("notify failed: from={} to={} err={}", self.role, target, e));
                 return Ok(CallToolResult::success(vec![Content::text(format!(
                     "Message sent to {} (auto-notification failed: {}). Target should check_inbox manually.",
-                    req.to, e
+                    target, e
                 ))]));
             }
         }
 
         Ok(CallToolResult::success(vec![Content::text(format!(
             "Message sent to {}: {}",
-            req.to, req.subject
+            target, req.subject
         ))]))
     }
 
@@ -172,7 +171,7 @@ impl RelayService {
         let mark_read = req.mark_read.unwrap_or(true);
         let messages = self
             .store
-            .check_inbox(&self.role, mark_read)
+            .check_inbox(self.role.as_str(), mark_read)
             .map_err(|e| {
                 McpError::internal_error(format!("Failed to check inbox: {}", e), None)
             })?;
@@ -221,14 +220,14 @@ impl RelayService {
             return Ok(CallToolResult::success(vec![Content::text(output)]));
         }
 
-        if !is_valid_role(&req.role) {
-            return Err(McpError::invalid_params(
-                format!("Invalid role '{}'. Valid: {:?} or 'all'", req.role, ALL_ROLES),
+        let role: Role = req.role.parse().map_err(|e: String| {
+            McpError::invalid_params(
+                format!("{}. Or use 'all'.", e),
                 None,
-            ));
-        }
+            )
+        })?;
 
-        let text = match self.store.get_status(&req.role).map_err(|e| {
+        let text = match self.store.get_status(role.as_str()).map_err(|e| {
             McpError::internal_error(format!("Failed to get status: {}", e), None)
         })? {
             Some(s) => format!(
@@ -240,7 +239,7 @@ impl RelayService {
                     .map(|t| format!("({})", t))
                     .unwrap_or_default()
             ),
-            None => format!("{}: unknown (no status recorded)", req.role),
+            None => format!("{}: unknown (no status recorded)", role),
         };
         Ok(CallToolResult::success(vec![Content::text(text)]))
     }
@@ -252,7 +251,7 @@ impl RelayService {
     ) -> Result<CallToolResult, McpError> {
         let status = parse_status(&req.status)?;
         self.store
-            .update_status(&self.role, status, req.task.as_deref())
+            .update_status(self.role, status, req.task.as_deref())
             .map_err(|e| {
                 McpError::internal_error(format!("Failed to update status: {}", e), None)
             })?;
@@ -272,26 +271,26 @@ impl RelayService {
         let priority = parse_priority(req.priority.as_deref());
         let mut sent_to = Vec::new();
 
-        for role in allowed_targets(&self.role) {
+        for target in self.role.allowed_targets() {
             self.store
-                .send_message(&self.role, role, &req.subject, &req.body, priority.clone())
+                .send_message(self.role, target, &req.subject, &req.body, priority.clone())
                 .map_err(|e| {
-                    McpError::internal_error(format!("Failed to send to {}: {}", role, e), None)
+                    McpError::internal_error(format!("Failed to send to {}: {}", target, e), None)
                 })?;
 
-            let should_notify = self.store.set_pending(role).map_err(|e| {
+            let should_notify = self.store.set_pending(target.as_str()).map_err(|e| {
                 McpError::internal_error(
-                    format!("Failed to set pending for {}: {}", role, e),
+                    format!("Failed to set pending for {}: {}", target, e),
                     None,
                 )
             })?;
 
             if should_notify {
-                if let Err(e) = notify::notify_pane(&self.session_name, role, &self.role, &self.plugin_path) {
-                    logging::error(&format!("broadcast notify failed: to={} err={}", role, e));
+                if let Err(e) = notify::notify_pane(&self.session_name, target, self.role, &self.plugin_path) {
+                    logging::error(&format!("broadcast notify failed: to={} err={}", target, e));
                 }
             }
-            sent_to.push(role);
+            sent_to.push(target.as_str());
         }
 
         Ok(CallToolResult::success(vec![Content::text(format!(
@@ -351,16 +350,14 @@ mod tests {
 
 /// Run the MCP relay server (entry point for `ovld relay`)
 pub async fn serve() -> anyhow::Result<()> {
-    let role = env::var("OVLD_ROLE")
+    let role_str = env::var("OVLD_ROLE")
         .unwrap_or_else(|_| panic!("OVLD_ROLE environment variable must be set"));
 
     if env::var("OVLD_DEBUG").is_ok() {
-        logging::init(&format!("relay-{}", role));
+        logging::init(&format!("relay-{}", role_str));
     }
 
-    if !is_valid_role(&role) {
-        anyhow::bail!("Invalid OVLD_ROLE '{}'. Valid: {:?}", role, ALL_ROLES);
-    }
+    let role: Role = role_str.parse().map_err(|e: String| anyhow::anyhow!(e))?;
 
     let relay_dir = env::var("OVLD_RELAY_DIR")
         .map(PathBuf::from)
