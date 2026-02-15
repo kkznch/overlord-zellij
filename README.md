@@ -94,7 +94,7 @@ Each Claude instance communicates through an MCP relay server backed by file-bas
 
 ## Layout Structure
 
-The Zellij session consists of 3 tabs:
+The Zellij session consists of 4 tabs:
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -116,12 +116,19 @@ The Zellij session consists of 3 tabs:
 │ ┌─────────────┬─────────────┬───────────────┤
 │ │   Glacier   │   Shadow    │    Storm      │
 │ │    (33%)    │    (33%)    │    (34%)      │
-│ └─────────────┴─────────────┴───────────────┘
+│ └─────────────┴─────────────┴───────────────┤
+├─────────────────────────────────────────────┤
+│ Tab 4: dashboard                            │
+│ ┌───────────────────────────────────────────┤
+│ │           ovld dashboard (TUI)            │
+│ │          real-time army status            │
+│ └───────────────────────────────────────────┘
 ```
 
 - **command**: Headquarters. Requirements definition and task management
 - **battlefield**: Main battlefield. Primary implementation work
 - **support**: Support troops. Architecture, testing, documentation
+- **dashboard**: Real-time TUI showing all role statuses, tasks, and recent messages
 
 The notify plugin is a minimal WASM pane that routes inter-pane notifications without switching focus.
 
@@ -148,7 +155,13 @@ ovld summon
 # Summon with debug logging
 ovld summon --debug
 
-# Check army status
+# Summon without sandbox (allow writes outside project directory)
+ovld summon --no-sandbox
+
+# Real-time army status dashboard (TUI)
+ovld dashboard
+
+# Check army status (one-shot)
 ovld status
 
 # Unsummon the Demon Army
@@ -163,6 +176,23 @@ ovld init --force   # Overwrite existing config
 ```
 
 Debug logs are written to `~/.config/ovld/logs/`.
+
+## Sandbox
+
+On macOS, `ovld summon` runs each Claude agent inside a [Seatbelt](https://reverse.put.as/wp-content/uploads/2011/09/Apple-Sandbox-Guide-v1.0.pdf) sandbox by default. File writes are restricted to prevent agents from modifying files outside the project directory.
+
+**Allowed write paths:**
+- Project directory (current working directory)
+- Relay directory (`~/.config/ovld/relay/`)
+- Claude config (`~/.claude/`, `~/.claude.json`)
+- Claude CLI cache (`~/Library/Caches/claude-cli-nodejs/`)
+- npm logs (`~/.npm/_logs/`)
+- Temp directories (`/tmp`, `/var/folders`)
+- Device files (`/dev`)
+
+Agents are launched with `--dangerously-skip-permissions` to run fully autonomously — the sandbox provides kernel-level protection instead of relying on interactive permission prompts.
+
+Use `--no-sandbox` to disable sandboxing (agents will still be launched with `--dangerously-skip-permissions`). Non-macOS platforms skip sandboxing automatically with a warning.
 
 ## Configuration
 
@@ -198,10 +228,11 @@ When `ovld summon` is executed:
 
 ### 2. Dynamic Layout Generation
 1. Generates a KDL layout dynamically with absolute paths to ritual files and MCP configs
-2. Each pane starts `claude --system-prompt-file <ritual> --mcp-config <mcp_config>`
-3. MCP relay tools are auto-approved via `--allowedTools "mcp__ovld-relay__*"`
-4. A WASM notify plugin pane is included for inter-pane notification routing
-5. Creates a temporary KDL file that's cleaned up after session ends
+2. Each pane starts `claude --dangerously-skip-permissions --system-prompt-file <ritual> --mcp-config <mcp_config>`
+3. On macOS with sandbox enabled, `claude` is wrapped with `sandbox-exec -f <profile>`
+4. MCP relay tools are auto-approved via `--allowedTools "mcp__ovld-relay__*"`
+5. A WASM notify plugin pane is included for inter-pane notification routing
+6. Creates a temporary KDL file that's cleaned up after session ends
 
 ### 3. Session Management
 1. Creates a new Zellij session with the generated layout
@@ -241,9 +272,10 @@ overlord-zellij/
 │   ├── lib.rs            # Library exports & constants
 │   ├── config.rs         # Config, ritual resolution, MCP config generation
 │   ├── layout.rs         # Dynamic KDL layout generation
+│   ├── sandbox.rs        # macOS Seatbelt sandbox profile generation
 │   ├── logging.rs        # Debug logging (--debug)
 │   ├── i18n.rs           # i18n (en/ja)
-│   ├── commands/         # summon / unsummon / status / init
+│   ├── commands/         # summon / unsummon / status / init / dashboard
 │   ├── zellij/           # Zellij session management
 │   ├── army/             # Role definitions & icons
 │   └── relay/            # MCP relay server
@@ -269,6 +301,8 @@ For detailed specifications, see `openspec/specs/`:
 - `army-hierarchy/` - Hierarchy & role specification
 - `zellij-session/` - Session management & layout specification
 - `config-management/` - Global config & ritual resolution specification
+- `dashboard/` - Real-time TUI dashboard specification
+- `sandbox/` - macOS Seatbelt sandbox specification
 - `i18n/` - Internationalization (en/ja) specification
 - `ritual-injection/` - Prompt injection specification
 - `workflow-protocol/` - Four Heavenly Kings coordination protocol

@@ -92,7 +92,7 @@ Glacier (型定義) → Inferno (ロジック実装) → Shadow (テスト)
 
 ## レイアウト構成
 
-Zellijセッションは3つのタブで構成：
+Zellijセッションは4つのタブで構成：
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -114,12 +114,19 @@ Zellijセッションは3つのタブで構成：
 │ ┌─────────────┬─────────────┬───────────────┤
 │ │   Glacier   │   Shadow    │    Storm      │
 │ │    (33%)    │    (33%)    │    (34%)      │
-│ └─────────────┴─────────────┴───────────────┘
+│ └─────────────┴─────────────┴───────────────┤
+├─────────────────────────────────────────────┤
+│ Tab 4: dashboard                            │
+│ ┌───────────────────────────────────────────┤
+│ │        ovld dashboard（TUI）               │
+│ │        リアルタイム軍勢ステータス             │
+│ └───────────────────────────────────────────┘
 ```
 
 - **command**: 司令部。要件定義とタスク管理
 - **battlefield**: 主戦場。メインの実装作業
 - **support**: 補助部隊。アーキテクチャ・テスト・ドキュメント
+- **dashboard**: リアルタイムTUI。全ロールの状態・タスク・最新メッセージを表示
 
 通知プラグインはフォーカスを切り替えずにペイン間通知をルーティングする最小限のWASMペイン。
 
@@ -146,7 +153,13 @@ ovld summon
 # デバッグログ付きで召喚
 ovld summon --debug
 
-# 軍勢の状況確認
+# サンドボックスなしで召喚（プロジェクト外への書き込みを許可）
+ovld summon --no-sandbox
+
+# リアルタイム軍勢ステータスダッシュボード（TUI）
+ovld dashboard
+
+# 軍勢の状況確認（ワンショット）
 ovld status
 
 # 魔王軍を還送
@@ -161,6 +174,23 @@ ovld init --force   # 既存設定を上書き
 ```
 
 デバッグログは `~/.config/ovld/logs/` に出力される。
+
+## サンドボックス
+
+macOS では `ovld summon` 実行時、各 Claude エージェントを [Seatbelt](https://reverse.put.as/wp-content/uploads/2011/09/Apple-Sandbox-Guide-v1.0.pdf) サンドボックス内で起動する（デフォルト有効）。プロジェクトディレクトリ外へのファイル書き込みがカーネルレベルで制限される。
+
+**書き込みが許可されるパス：**
+- プロジェクトディレクトリ（カレントディレクトリ）
+- relay ディレクトリ（`~/.config/ovld/relay/`）
+- Claude 設定（`~/.claude/`、`~/.claude.json`）
+- Claude CLI キャッシュ（`~/Library/Caches/claude-cli-nodejs/`）
+- npm ログ（`~/.npm/_logs/`）
+- 一時ディレクトリ（`/tmp`、`/var/folders`）
+- デバイスファイル（`/dev`）
+
+エージェントは `--dangerously-skip-permissions` 付きで起動され、対話的な権限確認なしで完全自律的に動作する。サンドボックスがカーネルレベルの保護を提供するため、権限プロンプトは不要。
+
+`--no-sandbox` でサンドボックスを無効化できる（`--dangerously-skip-permissions` は維持）。macOS 以外のプラットフォームでは警告を表示してサンドボックスを自動スキップする。
 
 ## 設定
 
@@ -196,10 +226,11 @@ cp -r ~/.config/ovld/rituals ./rituals
 
 ### 2. 動的レイアウト生成
 1. 儀式ファイルとMCP設定への絶対パスを含むKDLレイアウトを動的生成
-2. 各ペインで `claude --system-prompt-file <ritual> --mcp-config <mcp_config>` を起動
-3. MCPリレーツールは `--allowedTools "mcp__ovld-relay__*"` で自動承認
-4. ペイン間通知ルーティング用のWASM通知プラグインペインを含む
-5. セッション終了後にテンポラリKDLファイルを自動クリーンアップ
+2. 各ペインで `claude --dangerously-skip-permissions --system-prompt-file <ritual> --mcp-config <mcp_config>` を起動
+3. macOS でサンドボックス有効時、`claude` コマンドは `sandbox-exec -f <profile>` でラップされる
+4. MCPリレーツールは `--allowedTools "mcp__ovld-relay__*"` で自動承認
+5. ペイン間通知ルーティング用のWASM通知プラグインペインを含む
+6. セッション終了後にテンポラリKDLファイルを自動クリーンアップ
 
 ### 3. セッション管理
 1. 生成したレイアウトで新しいZellijセッションを作成
@@ -239,9 +270,10 @@ overlord-zellij/
 │   ├── lib.rs            # ライブラリエクスポート・定数
 │   ├── config.rs         # 設定、儀式解決、MCP設定生成
 │   ├── layout.rs         # 動的KDLレイアウト生成
+│   ├── sandbox.rs        # macOS Seatbelt サンドボックスプロファイル生成
 │   ├── logging.rs        # デバッグログ (--debug)
 │   ├── i18n.rs           # 多言語対応 (en/ja)
-│   ├── commands/         # summon / unsummon / status / init
+│   ├── commands/         # summon / unsummon / status / init / dashboard
 │   ├── zellij/           # Zellijセッション管理
 │   ├── army/             # 役職定義・アイコン
 │   └── relay/            # MCPリレーサーバー
@@ -267,6 +299,8 @@ overlord-zellij/
 - `army-hierarchy/` - 階層構造・役職仕様
 - `zellij-session/` - セッション管理・レイアウト仕様
 - `config-management/` - グローバル設定・儀式解決仕様
+- `dashboard/` - リアルタイムTUIダッシュボード仕様
+- `sandbox/` - macOS Seatbelt サンドボックス仕様
 - `i18n/` - 多言語対応（英語/日本語）仕様
 - `ritual-injection/` - プロンプト注入仕様
 - `workflow-protocol/` - 四天王の連動プロトコル
