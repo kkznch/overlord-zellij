@@ -23,7 +23,7 @@ pub fn generate_layout(
         let ritual_path = rituals_dir.join(format!("{}.md", name));
         let mcp_config_path = mcp_dir.join(format!("{}.json", name));
         let claude_args = format!(
-            "\"--system-prompt-file\" \"{}\" \"--mcp-config\" \"{}\" \"--setting-sources\" \"project,local\" \"--allowedTools\" \"mcp__ovld-relay__*\"",
+            "\"--dangerously-skip-permissions\" \"--system-prompt-file\" \"{}\" \"--mcp-config\" \"{}\" \"--setting-sources\" \"project,local\" \"--allowedTools\" \"mcp__ovld-relay__*\"",
             ritual_path.display(),
             mcp_config_path.display()
         );
@@ -192,6 +192,17 @@ mod tests {
         assert!(layout.contains("cwd=\"/home/user/projects/myproject\""));
         assert!(layout.contains("\"--setting-sources\" \"project,local\""));
         assert!(layout.contains("file:/home/user/.config/ovld/plugins/ovld-notify-plugin.wasm"));
+    }
+
+    #[test]
+    fn test_generate_layout_contains_skip_permissions() {
+        let rituals_dir = PathBuf::from("/tmp/rituals");
+        let mcp_dir = PathBuf::from("/tmp/mcp");
+        let cwd = PathBuf::from("/tmp/project");
+        let plugin_path = PathBuf::from("/tmp/plugin.wasm");
+        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None);
+
+        assert!(layout.contains("--dangerously-skip-permissions"));
     }
 
     #[test]
