@@ -4,8 +4,15 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
 
-/// Generate KDL layout with absolute paths to ritual files, MCP configs, and working directory
-pub fn generate_layout(rituals_dir: &Path, mcp_dir: &Path, cwd: &Path, plugin_path: &Path) -> String {
+/// Generate KDL layout with absolute paths to ritual files, MCP configs, and working directory.
+/// If `sandbox_profile` is provided, wraps `claude` invocations with `sandbox-exec -f <profile>`.
+pub fn generate_layout(
+    rituals_dir: &Path,
+    mcp_dir: &Path,
+    cwd: &Path,
+    plugin_path: &Path,
+    sandbox_profile: Option<&Path>,
+) -> String {
     let cwd_str = cwd.display();
     let plugin_str = plugin_path.display();
     let ovld_path = env::current_exe().unwrap_or_else(|_| PathBuf::from("ovld"));
@@ -15,13 +22,24 @@ pub fn generate_layout(rituals_dir: &Path, mcp_dir: &Path, cwd: &Path, plugin_pa
         let size_attr = size.map(|s| format!(" size=\"{}\"", s)).unwrap_or_default();
         let ritual_path = rituals_dir.join(format!("{}.md", name));
         let mcp_config_path = mcp_dir.join(format!("{}.json", name));
-        format!(
-            r#"            pane name="{name}"{size_attr} cwd="{cwd_str}" {{
-                command "claude"
-                args "--system-prompt-file" "{}" "--mcp-config" "{}" "--setting-sources" "project,local" "--allowedTools" "mcp__ovld-relay__*"
-            }}"#,
+        let claude_args = format!(
+            "\"--system-prompt-file\" \"{}\" \"--mcp-config\" \"{}\" \"--setting-sources\" \"project,local\" \"--allowedTools\" \"mcp__ovld-relay__*\"",
             ritual_path.display(),
             mcp_config_path.display()
+        );
+        let (cmd, args) = if let Some(profile) = sandbox_profile {
+            (
+                "sandbox-exec".to_string(),
+                format!("\"-f\" \"{}\" \"claude\" {}", profile.display(), claude_args),
+            )
+        } else {
+            ("claude".to_string(), claude_args)
+        };
+        format!(
+            r#"            pane name="{name}"{size_attr} cwd="{cwd_str}" {{
+                command "{cmd}"
+                args {args}
+            }}"#,
         )
     };
 
@@ -81,8 +99,14 @@ pub fn generate_layout(rituals_dir: &Path, mcp_dir: &Path, cwd: &Path, plugin_pa
 
 /// Create a temporary file with the generated layout
 /// Returns the temp file (keeps it alive) and its path
-pub fn create_temp_layout(rituals_dir: &Path, mcp_dir: &Path, cwd: &Path, plugin_path: &Path) -> Result<(NamedTempFile, PathBuf)> {
-    let content = generate_layout(rituals_dir, mcp_dir, cwd, plugin_path);
+pub fn create_temp_layout(
+    rituals_dir: &Path,
+    mcp_dir: &Path,
+    cwd: &Path,
+    plugin_path: &Path,
+    sandbox_profile: Option<&Path>,
+) -> Result<(NamedTempFile, PathBuf)> {
+    let content = generate_layout(rituals_dir, mcp_dir, cwd, plugin_path, sandbox_profile);
 
     let temp_file = NamedTempFile::with_suffix(".kdl")
         .context("Failed to create temporary layout file")?;
@@ -106,7 +130,7 @@ mod tests {
         let mcp_dir = PathBuf::from("/tmp/mcp");
         let cwd = PathBuf::from("/tmp/project");
         let plugin_path = PathBuf::from("/tmp/plugin.wasm");
-        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path);
+        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None);
 
         for role in &["overlord", "strategist", "inferno", "glacier", "shadow", "storm"] {
             assert!(
@@ -128,7 +152,7 @@ mod tests {
         let mcp_dir = PathBuf::from("/tmp/mcp");
         let cwd = PathBuf::from("/tmp/project");
         let plugin_path = PathBuf::from("/tmp/plugin.wasm");
-        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path);
+        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None);
 
         assert!(layout.contains("tab name=\"command\""));
         assert!(layout.contains("tab name=\"battlefield\""));
@@ -142,7 +166,7 @@ mod tests {
         let mcp_dir = PathBuf::from("/tmp/mcp");
         let cwd = PathBuf::from("/tmp/project");
         let plugin_path = PathBuf::from("/tmp/plugin.wasm");
-        let (temp_file, path) = create_temp_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path).unwrap();
+        let (temp_file, path) = create_temp_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None).unwrap();
 
         assert!(path.exists());
         assert!(path.to_string_lossy().ends_with(".kdl"));
@@ -158,7 +182,7 @@ mod tests {
         let mcp_dir = PathBuf::from("/home/user/.config/ovld/mcp");
         let cwd = PathBuf::from("/home/user/projects/myproject");
         let plugin_path = PathBuf::from("/home/user/.config/ovld/plugins/ovld-notify-plugin.wasm");
-        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path);
+        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None);
 
         assert!(layout.contains("command \"claude\""));
         assert!(layout.contains("--system-prompt-file"));
@@ -168,5 +192,19 @@ mod tests {
         assert!(layout.contains("cwd=\"/home/user/projects/myproject\""));
         assert!(layout.contains("\"--setting-sources\" \"project,local\""));
         assert!(layout.contains("file:/home/user/.config/ovld/plugins/ovld-notify-plugin.wasm"));
+    }
+
+    #[test]
+    fn test_generate_layout_with_sandbox() {
+        let rituals_dir = PathBuf::from("/tmp/rituals");
+        let mcp_dir = PathBuf::from("/tmp/mcp");
+        let cwd = PathBuf::from("/tmp/project");
+        let plugin_path = PathBuf::from("/tmp/plugin.wasm");
+        let sandbox = PathBuf::from("/tmp/sandbox.sb");
+        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, Some(&sandbox));
+
+        assert!(layout.contains("command \"sandbox-exec\""));
+        assert!(layout.contains("\"-f\" \"/tmp/sandbox.sb\" \"claude\""));
+        assert!(!layout.contains("command \"claude\""));
     }
 }

@@ -21,7 +21,11 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// summon - 魔王軍を召喚（カレントディレクトリで展開）
-    Summon,
+    Summon {
+        /// サンドボックスを無効化（プロジェクトディレクトリ外への書き込みを許可）
+        #[arg(long)]
+        no_sandbox: bool,
+    },
 
     /// unsummon - 魔王軍を還送（セッション終了）
     Unsummon {
@@ -58,7 +62,7 @@ fn main() {
     let config = config::load_config();
 
     let result = match cli.command {
-        Commands::Summon => summon::execute(&config, cli.debug),
+        Commands::Summon { no_sandbox } => summon::execute(&config, cli.debug, !no_sandbox),
         Commands::Unsummon { force } => unsummon::execute(force, &config),
         Commands::Status => status::execute(&config),
         Commands::Init { force } => init::execute(force, &config),

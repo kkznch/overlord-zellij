@@ -15,7 +15,7 @@ use crate::relay::store::MessageStore;
 use crate::zellij::ZellijSession;
 use crate::SESSION_NAME;
 
-pub fn execute(config: &AppConfig, debug: bool) -> Result<()> {
+pub fn execute(config: &AppConfig, debug: bool, sandbox: bool) -> Result<()> {
     let lang = config.lang;
     let session = ZellijSession::new(SESSION_NAME);
     let cwd = env::current_dir()?;
@@ -73,8 +73,31 @@ pub fn execute(config: &AppConfig, debug: bool) -> Result<()> {
         i18n::tf("summon.ritual_files", lang, &[("path", &i18n::path_str(&rituals_dir))])
     );
 
+    // Create sandbox profile if enabled (macOS only)
+    let _sandbox_profile = if sandbox {
+        if cfg!(target_os = "macos") {
+            let (temp, path) = crate::sandbox::create_temp_profile(&cwd, &relay)?;
+            println!(
+                "{} {}",
+                "Info:".cyan().bold(),
+                "Sandbox enabled: file writes restricted to project directory"
+            );
+            Some((temp, path))
+        } else {
+            eprintln!(
+                "{} {}",
+                "Warning:".yellow().bold(),
+                "Sandbox is only supported on macOS. Skipping."
+            );
+            None
+        }
+    } else {
+        None
+    };
+    let sandbox_path = _sandbox_profile.as_ref().map(|(_, p)| p.as_path());
+
     // Generate layout with absolute paths to ritual files, MCP configs, and cwd
-    let (_temp_file, layout_path) = create_temp_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path)?;
+    let (_temp_file, layout_path) = create_temp_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, sandbox_path)?;
 
     logging::info(&format!("summon: starting session (cwd={})", cwd.display()));
 
