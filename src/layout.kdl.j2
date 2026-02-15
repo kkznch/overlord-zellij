@@ -1,0 +1,56 @@
+layout {
+    // Command tab: Dashboard + Overlord + Strategist (司令部)
+    tab name="command" focus=true {
+        pane split_direction="vertical" {
+            pane name="{{ dashboard_name }}" size="50%" cwd="{{ cwd }}" {
+                command "{{ ovld_path }}"
+                args "dashboard"
+            }
+            pane split_direction="horizontal" size="50%" {
+{%- for agent in command_agents %}
+                pane name="{{ agent.name }}" size="{{ agent.size }}"{% if agent.focus %} focus=true{% endif %} cwd="{{ cwd }}" {
+{%- if sandbox_profile %}
+                    command "sandbox-exec"
+                    args "-f" "{{ sandbox_profile }}" "claude" {{ agent.claude_args }}
+{%- else %}
+                    command "claude"
+                    args {{ agent.claude_args }}
+{%- endif %}
+                }
+{%- endfor %}
+            }
+        }
+        // Notify plugin: single instance for pipe message routing
+        pane size=1 borderless=true {
+            plugin location="file:{{ plugin_path }}"
+        }
+    }
+
+    // Battlefield tab: Four Heavenly Kings (四天王)
+    tab name="battlefield" {
+        pane split_direction="horizontal" {
+{%- for row in battlefield_rows %}
+            pane split_direction="vertical" size="50%" {
+{%- for agent in row %}
+                pane name="{{ agent.name }}" size="50%" cwd="{{ cwd }}" {
+{%- if sandbox_profile %}
+                    command "sandbox-exec"
+                    args "-f" "{{ sandbox_profile }}" "claude" {{ agent.claude_args }}
+{%- else %}
+                    command "claude"
+                    args {{ agent.claude_args }}
+{%- endif %}
+                }
+{%- endfor %}
+            }
+{%- endfor %}
+        }
+    }
+
+    default_tab_template {
+        pane size=1 borderless=true {
+            plugin location="compact-bar"
+        }
+        children
+    }
+}

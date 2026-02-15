@@ -1,4 +1,6 @@
 use anyhow::{Context, Result};
+use minijinja::{context, Environment};
+use serde::Serialize;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -11,7 +13,7 @@ pub const DASHBOARD_PANE_NAME: &str = "dashboard";
 
 /// Terminal pane appearance order in the KDL layout.
 /// Zellij assigns Terminal IDs 0..N in this order.
-/// **Must match the order of terminal panes in `generate_layout()`.**
+/// **Must match the order of terminal panes in the template (`layout.kdl.j2`).**
 const PANE_ORDER: &[&str] = &[
     DASHBOARD_PANE_NAME,            // 0
     Role::Overlord.as_str(),        // 1
@@ -31,6 +33,38 @@ pub fn pane_id_for_role(role: &str) -> Option<u32> {
         .map(|i| i as u32)
 }
 
+/// Context for a single agent pane in the template.
+#[derive(Serialize)]
+struct AgentContext {
+    name: String,
+    size: String,
+    focus: bool,
+    claude_args: String,
+}
+
+/// Build an agent context for template rendering.
+fn build_agent(
+    name: &str,
+    size: &str,
+    focus: bool,
+    rituals_dir: &Path,
+    mcp_dir: &Path,
+) -> AgentContext {
+    let ritual = rituals_dir.join(format!("{}.md", name));
+    let mcp = mcp_dir.join(format!("{}.json", name));
+    let claude_args = format!(
+        "\"--dangerously-skip-permissions\" \"--system-prompt-file\" \"{}\" \"--mcp-config\" \"{}\" \"--setting-sources\" \"user,project,local\" \"--allowedTools\" \"mcp__ovld-relay__*\"",
+        ritual.display(),
+        mcp.display()
+    );
+    AgentContext {
+        name: name.to_string(),
+        size: size.to_string(),
+        focus,
+        claude_args,
+    }
+}
+
 /// Generate KDL layout with absolute paths to ritual files, MCP configs, and working directory.
 /// If `sandbox_profile` is provided, wraps `claude` invocations with `sandbox-exec -f <profile>`.
 pub fn generate_layout(
@@ -40,88 +74,40 @@ pub fn generate_layout(
     plugin_path: &Path,
     sandbox_profile: Option<&Path>,
 ) -> String {
-    let cwd_str = cwd.display();
-    let plugin_str = plugin_path.display();
     let ovld_path = env::current_exe().unwrap_or_else(|_| PathBuf::from("ovld"));
-    let ovld_str = ovld_path.display();
 
-    let pane_config = |name: &str, size: Option<&str>, focus: bool| -> String {
-        let size_attr = size.map(|s| format!(" size=\"{}\"", s)).unwrap_or_default();
-        let focus_attr = if focus { " focus=true" } else { "" };
-        let ritual_path = rituals_dir.join(format!("{}.md", name));
-        let mcp_config_path = mcp_dir.join(format!("{}.json", name));
-        let claude_args = format!(
-            "\"--dangerously-skip-permissions\" \"--system-prompt-file\" \"{}\" \"--mcp-config\" \"{}\" \"--setting-sources\" \"user,project,local\" \"--allowedTools\" \"mcp__ovld-relay__*\"",
-            ritual_path.display(),
-            mcp_config_path.display()
-        );
-        let (cmd, args) = if let Some(profile) = sandbox_profile {
-            (
-                "sandbox-exec".to_string(),
-                format!("\"-f\" \"{}\" \"claude\" {}", profile.display(), claude_args),
-            )
-        } else {
-            ("claude".to_string(), claude_args)
-        };
-        format!(
-            r#"            pane name="{name}"{size_attr}{focus_attr} cwd="{cwd_str}" {{
-                command "{cmd}"
-                args {args}
-            }}"#,
-        )
-    };
+    let command_agents = vec![
+        build_agent(Role::Overlord.as_str(), "50%", true, rituals_dir, mcp_dir),
+        build_agent(Role::Strategist.as_str(), "50%", false, rituals_dir, mcp_dir),
+    ];
+    let battlefield_rows = vec![
+        vec![
+            build_agent(Role::Glacier.as_str(), "50%", false, rituals_dir, mcp_dir),
+            build_agent(Role::Inferno.as_str(), "50%", false, rituals_dir, mcp_dir),
+        ],
+        vec![
+            build_agent(Role::Shadow.as_str(), "50%", false, rituals_dir, mcp_dir),
+            build_agent(Role::Storm.as_str(), "50%", false, rituals_dir, mcp_dir),
+        ],
+    ];
 
-    format!(
-        r#"layout {{
-    // Command tab: Dashboard + Overlord + Strategist (司令部)
-    tab name="command" focus=true {{
-        pane split_direction="vertical" {{
-            pane name="{dashboard_name}" size="50%" cwd="{cwd_str}" {{
-                command "{ovld_str}"
-                args "dashboard"
-            }}
-            pane split_direction="horizontal" size="50%" {{
-{overlord}
-{strategist}
-            }}
-        }}
-        // Notify plugin: single instance for pipe message routing
-        pane size=1 borderless=true {{
-            plugin location="file:{plugin_str}"
-        }}
-    }}
+    let mut env = Environment::new();
+    env.add_template("layout", include_str!("layout.kdl.j2"))
+        .expect("failed to add layout template");
+    let tmpl = env
+        .get_template("layout")
+        .expect("failed to get layout template");
 
-    // Battlefield tab: Four Heavenly Kings (四天王)
-    tab name="battlefield" {{
-        pane split_direction="horizontal" {{
-            pane split_direction="vertical" size="50%" {{
-{glacier}
-{inferno}
-            }}
-            pane split_direction="vertical" size="50%" {{
-{shadow}
-{storm}
-            }}
-        }}
-    }}
-
-    default_tab_template {{
-        pane size=1 borderless=true {{
-            plugin location="compact-bar"
-        }}
-        children
-    }}
-}}
-"#,
-        dashboard_name = DASHBOARD_PANE_NAME,
-        overlord = pane_config(Role::Overlord.as_str(), Some("50%"), true),
-        strategist = pane_config(Role::Strategist.as_str(), Some("50%"), false),
-        glacier = pane_config(Role::Glacier.as_str(), Some("50%"), false),
-        inferno = pane_config(Role::Inferno.as_str(), Some("50%"), false),
-        shadow = pane_config(Role::Shadow.as_str(), Some("50%"), false),
-        storm = pane_config(Role::Storm.as_str(), Some("50%"), false),
-        plugin_str = plugin_str,
-    )
+    tmpl.render(context! {
+        dashboard_name => DASHBOARD_PANE_NAME,
+        cwd => cwd.display().to_string(),
+        ovld_path => ovld_path.display().to_string(),
+        plugin_path => plugin_path.display().to_string(),
+        sandbox_profile => sandbox_profile.map(|p| p.display().to_string()),
+        command_agents,
+        battlefield_rows,
+    })
+    .expect("failed to render layout template")
 }
 
 /// Create a temporary file with the generated layout
@@ -196,7 +182,6 @@ mod tests {
         let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None);
 
         assert!(layout.contains("pane name=\"dashboard\""));
-        // Dashboard, overlord, and strategist should all be in the command tab
         let command_tab_start = layout.find("tab name=\"command\"").unwrap();
         let battlefield_tab_start = layout.find("tab name=\"battlefield\"").unwrap();
         let command_section = &layout[command_tab_start..battlefield_tab_start];
@@ -227,7 +212,8 @@ mod tests {
         let mcp_dir = PathBuf::from("/tmp/mcp");
         let cwd = PathBuf::from("/tmp/project");
         let plugin_path = PathBuf::from("/tmp/plugin.wasm");
-        let (temp_file, path) = create_temp_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None).unwrap();
+        let (temp_file, path) =
+            create_temp_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None).unwrap();
 
         assert!(path.exists());
         assert!(path.to_string_lossy().ends_with(".kdl"));
@@ -242,7 +228,8 @@ mod tests {
         let rituals_dir = PathBuf::from("/home/user/.config/ovld/rituals");
         let mcp_dir = PathBuf::from("/home/user/.config/ovld/mcp");
         let cwd = PathBuf::from("/home/user/projects/myproject");
-        let plugin_path = PathBuf::from("/home/user/.config/ovld/plugins/ovld-notify-plugin.wasm");
+        let plugin_path =
+            PathBuf::from("/home/user/.config/ovld/plugins/ovld-notify-plugin.wasm");
         let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None);
 
         assert!(layout.contains("command \"claude\""));
@@ -252,7 +239,9 @@ mod tests {
         assert!(layout.contains("/home/user/.config/ovld/mcp/overlord.json"));
         assert!(layout.contains("cwd=\"/home/user/projects/myproject\""));
         assert!(layout.contains("\"--setting-sources\" \"user,project,local\""));
-        assert!(layout.contains("file:/home/user/.config/ovld/plugins/ovld-notify-plugin.wasm"));
+        assert!(layout.contains(
+            "file:/home/user/.config/ovld/plugins/ovld-notify-plugin.wasm"
+        ));
     }
 
     #[test]
@@ -273,7 +262,13 @@ mod tests {
         let cwd = PathBuf::from("/tmp/project");
         let plugin_path = PathBuf::from("/tmp/plugin.wasm");
         let sandbox = PathBuf::from("/tmp/sandbox.sb");
-        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, Some(&sandbox));
+        let layout = generate_layout(
+            &rituals_dir,
+            &mcp_dir,
+            &cwd,
+            &plugin_path,
+            Some(&sandbox),
+        );
 
         assert!(layout.contains("command \"sandbox-exec\""));
         assert!(layout.contains("\"-f\" \"/tmp/sandbox.sb\" \"claude\""));
@@ -297,8 +292,7 @@ mod tests {
             }
         }
         assert_eq!(
-            actual_order,
-            PANE_ORDER,
+            actual_order, PANE_ORDER,
             "PANE_ORDER must match the pane appearance order in generate_layout()"
         );
     }
