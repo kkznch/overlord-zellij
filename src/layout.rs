@@ -23,7 +23,7 @@ pub fn generate_layout(
         let ritual_path = rituals_dir.join(format!("{}.md", name));
         let mcp_config_path = mcp_dir.join(format!("{}.json", name));
         let claude_args = format!(
-            "\"--dangerously-skip-permissions\" \"--system-prompt-file\" \"{}\" \"--mcp-config\" \"{}\" \"--setting-sources\" \"project,local\" \"--allowedTools\" \"mcp__ovld-relay__*\"",
+            "\"--dangerously-skip-permissions\" \"--system-prompt-file\" \"{}\" \"--mcp-config\" \"{}\" \"--setting-sources\" \"user,project,local\" \"--allowedTools\" \"mcp__ovld-relay__*\"",
             ritual_path.display(),
             mcp_config_path.display()
         );
@@ -190,7 +190,7 @@ mod tests {
         assert!(layout.contains("--mcp-config"));
         assert!(layout.contains("/home/user/.config/ovld/mcp/overlord.json"));
         assert!(layout.contains("cwd=\"/home/user/projects/myproject\""));
-        assert!(layout.contains("\"--setting-sources\" \"project,local\""));
+        assert!(layout.contains("\"--setting-sources\" \"user,project,local\""));
         assert!(layout.contains("file:/home/user/.config/ovld/plugins/ovld-notify-plugin.wasm"));
     }
 
