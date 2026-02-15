@@ -26,7 +26,7 @@ pub const ALL: &[Role] = &[
 const SHITENNOH: &[Role] = &[Role::Inferno, Role::Glacier, Role::Shadow, Role::Storm];
 
 impl Role {
-    pub fn as_str(&self) -> &'static str {
+    pub const fn as_str(&self) -> &'static str {
         match self {
             Role::Overlord => "overlord",
             Role::Strategist => "strategist",
@@ -89,18 +89,6 @@ impl Role {
             ],
             r if r.is_shitennoh() => vec![Role::Strategist],
             _ => vec![],
-        }
-    }
-
-    /// Map role to its terminal pane ID in the Zellij layout.
-    pub fn pane_id(&self) -> u32 {
-        match self {
-            Role::Overlord => 0,
-            Role::Strategist => 1,
-            Role::Inferno => 2,
-            Role::Glacier => 3,
-            Role::Shadow => 4,
-            Role::Storm => 5,
         }
     }
 
@@ -248,13 +236,4 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_pane_id() {
-        assert_eq!(Role::Overlord.pane_id(), 0);
-        assert_eq!(Role::Strategist.pane_id(), 1);
-        assert_eq!(Role::Inferno.pane_id(), 2);
-        assert_eq!(Role::Glacier.pane_id(), 3);
-        assert_eq!(Role::Shadow.pane_id(), 4);
-        assert_eq!(Role::Storm.pane_id(), 5);
-    }
 }

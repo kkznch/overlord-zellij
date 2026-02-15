@@ -3,6 +3,7 @@ use std::process::{Command, Stdio};
 use std::thread;
 
 use crate::army::roles::Role;
+use crate::layout;
 use crate::logging;
 
 /// Build the JSON payload for the notify plugin.
@@ -27,14 +28,15 @@ fn build_payload(pane_id: u32, from: Role) -> String {
 ///
 /// Runs in a background thread because `zellij pipe` blocks for several minutes.
 pub fn notify_pane(session: &str, target: Role, from: Role, plugin_path: &str) -> Result<()> {
-    let id = target.pane_id();
-    let payload = build_payload(id, from);
+    let pane_id = layout::pane_id_for_role(target.as_str())
+        .unwrap_or_else(|| panic!("role '{}' not found in PANE_ORDER", target));
+    let payload = build_payload(pane_id, from);
     let session = session.to_string();
     let plugin = format!("file:{}", plugin_path);
 
     logging::debug(&format!(
         "zellij pipe: target={} pane_id={} session={} plugin={}",
-        target, id, session, plugin_path
+        target, pane_id, session, plugin_path
     ));
 
     // Keep parent env (ZELLIJ, ZELLIJ_SESSION_NAME) so zellij pipe
