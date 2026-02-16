@@ -149,13 +149,15 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: &Messa
                     .iter()
                     .map(|m| {
                         let ts = m.timestamp.with_timezone(&chrono::Local).format("%H:%M:%S");
+                        let from_name = i18n::t(&format!("role.{}", m.from), lang);
+                        let to_name = i18n::t(&format!("role.{}", m.to), lang);
                         Line::from(vec![
                             Span::styled(
                                 format!(" [{}] ", ts),
                                 Style::default().fg(Color::DarkGray),
                             ),
                             Span::styled(
-                                format!("{} -> {}: ", m.from, m.to),
+                                format!("{} {} -> {} {}: ", m.from.icon(), from_name, m.to.icon(), to_name),
                                 Style::default().fg(Color::DarkGray),
                             ),
                             Span::raw(&m.subject),
