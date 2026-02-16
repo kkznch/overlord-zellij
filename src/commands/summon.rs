@@ -4,7 +4,7 @@ use colored::Colorize;
 use std::env;
 
 use crate::config::{
-    ensure_default_config, extract_plugin, generate_mcp_configs,
+    ensure_default_config, extract_plugin, generate_mcp_configs, knowledge_dir,
     load_session_metadata, relay_dir, resolve_rituals_dir, save_session_metadata,
     validate_rituals_dir, SessionMetadata, AppConfig,
 };
@@ -46,7 +46,10 @@ pub fn execute(config: &AppConfig, debug: bool, sandbox: bool) -> Result<()> {
 
     // Initialize relay directory structure
     let relay = relay_dir()?;
-    let store = MessageStore::new(relay.clone());
+    let knowledge = knowledge_dir()?;
+    std::fs::create_dir_all(&knowledge)?;
+    let store = MessageStore::new(relay.clone())
+        .with_knowledge_dir(knowledge);
     store.init()?;
 
     // Extract notify plugin WASM

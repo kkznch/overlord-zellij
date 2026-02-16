@@ -52,6 +52,15 @@ MCPツールで軍師と自動通信する。手動コピペは不要。
 - UI・CSS・ドキュメントは疾風の領域。一切触るな
 - 自分の領域外の作業を発見したら、軍師に報告して適切な担当者に回せ
 
+## 知見の共有
+
+魔王軍は `share_insight` / `query_insights` ツールで知見を蓄積・共有できる。知見はセッションを跨いで永続する。
+
+- 作業開始前に `query_insights` で関連知見を確認せよ。過去にハマった箇所を踏まない
+- 非自明なパターン、APIの罠、パフォーマンスの知見を発見したら `share_insight` で記録せよ
+- 完了報告と一緒に知見を記録する習慣をつけよ
+- category: architecture / debugging / pattern / gotcha / performance
+
 ## Sandbox制約
 
 このプロセスは macOS Seatbelt サンドボックス内で実行されている場合がある。

@@ -60,6 +60,28 @@ pub struct BroadcastRequest {
     pub priority: Option<String>,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ShareInsightRequest {
+    /// Category: architecture, debugging, pattern, gotcha, performance
+    pub category: String,
+    /// Brief title (max 80 chars)
+    pub title: String,
+    /// What was learned, why it matters, and how to apply it
+    pub content: String,
+    /// Optional tags for searchability
+    pub tags: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct QueryInsightsRequest {
+    /// Filter by category: architecture, debugging, pattern, gotcha, performance
+    pub category: Option<String>,
+    /// Search keyword (matches title, content, and tags)
+    pub keyword: Option<String>,
+    /// Max results to return. Default: 10
+    pub limit: Option<usize>,
+}
+
 // --- Service ---
 
 #[derive(Clone)]
@@ -299,6 +321,74 @@ impl RelayService {
             req.subject
         ))]))
     }
+
+    #[tool(
+        description = "Record a learning or discovery to the army's shared knowledge base. Persists across sessions. Use when you discover a non-obvious pattern, debug a tricky issue, or learn something about the codebase architecture."
+    )]
+    async fn share_insight(
+        &self,
+        Parameters(req): Parameters<ShareInsightRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let tags = req.tags.unwrap_or_default();
+
+        logging::debug(&format!(
+            "share_insight: from={} category={} title={}",
+            self.role, req.category, req.title
+        ));
+
+        let insight = self
+            .store
+            .store_insight(self.role, &req.category, &req.title, &req.content, tags)
+            .map_err(|e| {
+                McpError::internal_error(format!("Failed to store insight: {}", e), None)
+            })?;
+
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "Insight recorded [{}]: {} (category: {}, from: {})",
+            insight.id, insight.title, insight.category, insight.from
+        ))]))
+    }
+
+    #[tool(
+        description = "Search the army's shared knowledge base. Use at session start to load relevant context, or when facing a familiar problem. Knowledge persists across sessions."
+    )]
+    async fn query_insights(
+        &self,
+        Parameters(req): Parameters<QueryInsightsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let limit = req.limit.unwrap_or(10);
+
+        let insights = self
+            .store
+            .query_insights(req.category.as_deref(), req.keyword.as_deref(), limit)
+            .map_err(|e| {
+                McpError::internal_error(format!("Failed to query insights: {}", e), None)
+            })?;
+
+        if insights.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(
+                "No insights found.",
+            )]));
+        }
+
+        let mut output = format!("{} insight(s) found:\n", insights.len());
+        for (i, insight) in insights.iter().enumerate() {
+            output.push_str(&format!(
+                "\n[{}] ({}) {} — by {}\n    {}\n    tags: {}\n",
+                i + 1,
+                insight.category,
+                insight.title,
+                insight.from,
+                insight.content,
+                if insight.tags.is_empty() {
+                    "none".to_string()
+                } else {
+                    insight.tags.join(", ")
+                }
+            ));
+        }
+        Ok(CallToolResult::success(vec![Content::text(output)]))
+    }
 }
 
 #[tool_handler]
@@ -374,7 +464,20 @@ pub async fn serve() -> anyhow::Result<()> {
     let plugin_path = env::var("OVLD_PLUGIN_PATH")
         .unwrap_or_else(|_| String::new());
 
-    let store = Arc::new(MessageStore::new(relay_dir));
+    let knowledge_dir = env::var("OVLD_KNOWLEDGE_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| {
+            let home = env::var("HOME").expect("HOME not set");
+            PathBuf::from(home)
+                .join(".config")
+                .join("ovld")
+                .join("knowledge")
+        });
+
+    let store = Arc::new(
+        MessageStore::new(relay_dir)
+            .with_knowledge_dir(knowledge_dir)
+    );
 
     logging::info(&format!("MCP relay started: role={} session={}", role, session_name));
 

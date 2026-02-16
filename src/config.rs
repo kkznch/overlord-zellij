@@ -66,6 +66,10 @@ pub fn relay_dir() -> Result<PathBuf> {
     Ok(config_dir()?.join("relay"))
 }
 
+pub fn knowledge_dir() -> Result<PathBuf> {
+    Ok(config_dir()?.join("knowledge"))
+}
+
 fn session_metadata_path() -> Result<PathBuf> {
     Ok(config_dir()?.join("session.json"))
 }
@@ -164,6 +168,7 @@ pub fn extract_plugin() -> Result<PathBuf> {
 }
 
 pub fn generate_mcp_configs(mcp_dir: &Path, relay_dir: &Path, session_name: &str, plugin_path: &Path, debug: bool) -> Result<()> {
+    let knowledge_dir = knowledge_dir()?;
     fs::create_dir_all(mcp_dir)
         .with_context(|| format!("Failed to create MCP config directory: {:?}", mcp_dir))?;
 
@@ -174,6 +179,7 @@ pub fn generate_mcp_configs(mcp_dir: &Path, relay_dir: &Path, session_name: &str
         let mut env_vars = serde_json::json!({
             "OVLD_ROLE": role,
             "OVLD_RELAY_DIR": relay_dir.to_string_lossy(),
+            "OVLD_KNOWLEDGE_DIR": knowledge_dir.to_string_lossy(),
             "OVLD_SESSION": session_name,
             "OVLD_PLUGIN_PATH": plugin_path.to_string_lossy(),
         });

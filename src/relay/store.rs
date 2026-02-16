@@ -5,15 +5,21 @@ use std::path::PathBuf;
 
 use crate::army::roles::{Role, ALL};
 
-use super::types::{Message, Priority, RoleStatus, Status};
+use super::types::{Insight, Message, Priority, RoleStatus, Status};
 
 pub struct MessageStore {
     base_dir: PathBuf,
+    knowledge_dir: Option<PathBuf>,
 }
 
 impl MessageStore {
     pub fn new(base_dir: PathBuf) -> Self {
-        Self { base_dir }
+        Self { base_dir, knowledge_dir: None }
+    }
+
+    pub fn with_knowledge_dir(mut self, dir: PathBuf) -> Self {
+        self.knowledge_dir = Some(dir);
+        self
     }
 
     /// Initialize directory structure for all roles
@@ -191,7 +197,92 @@ impl MessageStore {
         Ok(all_messages)
     }
 
-    /// Clean up all relay data
+    // --- Knowledge store (persistent across sessions) ---
+
+    fn knowledge_base_dir(&self) -> Option<&PathBuf> {
+        self.knowledge_dir.as_ref()
+    }
+
+    /// Store an insight to the persistent knowledge base
+    pub fn store_insight(
+        &self,
+        from: Role,
+        category: &str,
+        title: &str,
+        content: &str,
+        tags: Vec<String>,
+    ) -> Result<Insight> {
+        let dir = self.knowledge_base_dir()
+            .context("Knowledge directory not configured")?;
+        let timestamp = Utc::now();
+        let id = format!("{}_{}", timestamp.timestamp_millis(), from);
+        let insight = Insight {
+            id: id.clone(),
+            from,
+            category: category.to_string(),
+            title: title.to_string(),
+            content: content.to_string(),
+            tags,
+            timestamp,
+        };
+
+        fs::create_dir_all(dir)?;
+        let file_path = dir.join(format!("{}.json", id));
+        fs::write(&file_path, serde_json::to_string_pretty(&insight)?)?;
+        Ok(insight)
+    }
+
+    /// Query insights from the knowledge base with optional filters
+    pub fn query_insights(
+        &self,
+        category: Option<&str>,
+        keyword: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<Insight>> {
+        let dir = match self.knowledge_base_dir() {
+            Some(d) if d.exists() => d,
+            _ => return Ok(vec![]),
+        };
+
+        let mut insights = Vec::new();
+        for entry in fs::read_dir(dir)?.filter_map(|e| e.ok()) {
+            if !entry.path().extension().is_some_and(|ext| ext == "json") {
+                continue;
+            }
+            let content = fs::read_to_string(entry.path())?;
+            let insight: Insight = match serde_json::from_str(&content) {
+                Ok(i) => i,
+                Err(_) => continue,
+            };
+
+            // Filter by category
+            if let Some(cat) = category {
+                if insight.category != cat {
+                    continue;
+                }
+            }
+
+            // Filter by keyword (searches title, content, and tags)
+            if let Some(kw) = keyword {
+                let kw_lower = kw.to_lowercase();
+                let matches = insight.title.to_lowercase().contains(&kw_lower)
+                    || insight.content.to_lowercase().contains(&kw_lower)
+                    || insight.tags.iter().any(|t| t.to_lowercase().contains(&kw_lower));
+                if !matches {
+                    continue;
+                }
+            }
+
+            insights.push(insight);
+        }
+
+        // Sort by timestamp descending (newest first)
+        insights.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+        insights.truncate(limit);
+        Ok(insights)
+    }
+
+    /// Clean up all relay data (knowledge is NOT deleted)
     pub fn cleanup(&self) -> Result<()> {
         if self.base_dir.exists() {
             fs::remove_dir_all(&self.base_dir).context("Failed to clean up relay directory")?;
@@ -210,6 +301,15 @@ mod tests {
         let store = MessageStore::new(dir.path().to_path_buf());
         store.init().unwrap();
         (dir, store)
+    }
+
+    fn test_store_with_knowledge() -> (TempDir, TempDir, MessageStore) {
+        let dir = TempDir::new().unwrap();
+        let knowledge_dir = TempDir::new().unwrap();
+        let store = MessageStore::new(dir.path().to_path_buf())
+            .with_knowledge_dir(knowledge_dir.path().to_path_buf());
+        store.init().unwrap();
+        (dir, knowledge_dir, store)
     }
 
     #[test]
@@ -396,5 +496,68 @@ mod tests {
         let (_dir, store) = test_store();
         let recent = store.recent_messages(10).unwrap();
         assert!(recent.is_empty());
+    }
+
+    #[test]
+    fn test_store_and_query_insight() {
+        let (_dir, _kdir, store) = test_store_with_knowledge();
+
+        store.store_insight(
+            Role::Glacier,
+            "architecture",
+            "File-based IPC",
+            "JSON files work well for inter-process communication",
+            vec!["relay".to_string(), "ipc".to_string()],
+        ).unwrap();
+
+        let results = store.query_insights(None, None, 10).unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].title, "File-based IPC");
+        assert_eq!(results[0].from, Role::Glacier);
+    }
+
+    #[test]
+    fn test_query_insights_filter_by_category() {
+        let (_dir, _kdir, store) = test_store_with_knowledge();
+
+        store.store_insight(Role::Inferno, "debugging", "Stdout leak", "Use Stdio::null()", vec![]).unwrap();
+        store.store_insight(Role::Glacier, "architecture", "Module layout", "Keep it flat", vec![]).unwrap();
+
+        let results = store.query_insights(Some("debugging"), None, 10).unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].title, "Stdout leak");
+    }
+
+    #[test]
+    fn test_query_insights_filter_by_keyword() {
+        let (_dir, _kdir, store) = test_store_with_knowledge();
+
+        store.store_insight(Role::Shadow, "debugging", "Zellij stdout", "Suppress with Stdio::null()", vec!["zellij".to_string()]).unwrap();
+        store.store_insight(Role::Inferno, "pattern", "Builder pattern", "Use with_* methods", vec![]).unwrap();
+
+        let results = store.query_insights(None, Some("zellij"), 10).unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].title, "Zellij stdout");
+    }
+
+    #[test]
+    fn test_query_insights_empty_knowledge() {
+        let (_dir, store) = test_store();
+        // No knowledge_dir configured
+        let results = store.query_insights(None, None, 10).unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_cleanup_preserves_knowledge() {
+        let (_dir, kdir, store) = test_store_with_knowledge();
+
+        store.store_insight(Role::Glacier, "architecture", "Test", "Content", vec![]).unwrap();
+        store.cleanup().unwrap();
+
+        // Knowledge dir should still exist with data
+        assert!(kdir.path().exists());
+        let results = store.query_insights(None, None, 10).unwrap();
+        assert_eq!(results.len(), 1);
     }
 }

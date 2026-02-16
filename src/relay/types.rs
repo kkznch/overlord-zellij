@@ -61,6 +61,17 @@ impl std::fmt::Display for Priority {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Insight {
+    pub id: String,
+    pub from: Role,
+    pub category: String,
+    pub title: String,
+    pub content: String,
+    pub tags: Vec<String>,
+    pub timestamp: DateTime<Utc>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -126,5 +137,24 @@ mod tests {
             let deserialized: Priority = serde_json::from_str(&json).unwrap();
             assert_eq!(format!("{}", priority), format!("{}", deserialized));
         }
+    }
+
+    #[test]
+    fn test_insight_json_roundtrip() {
+        let insight = Insight {
+            id: "123_glacier".to_string(),
+            from: Role::Glacier,
+            category: "architecture".to_string(),
+            title: "Relay store pattern".to_string(),
+            content: "File-based JSON persistence works well for IPC".to_string(),
+            tags: vec!["relay".to_string(), "persistence".to_string()],
+            timestamp: Utc::now(),
+        };
+        let json = serde_json::to_string(&insight).unwrap();
+        let deserialized: Insight = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.id, insight.id);
+        assert_eq!(deserialized.from, Role::Glacier);
+        assert_eq!(deserialized.category, "architecture");
+        assert_eq!(deserialized.tags.len(), 2);
     }
 }
