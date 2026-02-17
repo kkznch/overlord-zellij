@@ -183,7 +183,8 @@ On macOS, `ovld summon` runs each Claude agent inside a [Seatbelt](https://rever
 
 **Allowed write paths:**
 - Project directory (current working directory)
-- Relay directory (`~/.config/ovld/relay/`)
+- Git repository root (worktree support)
+- Config directory (`~/.config/ovld/`)
 - Claude config (`~/.claude/`, `~/.claude.json`)
 - Claude CLI cache (`~/Library/Caches/claude-cli-nodejs/`)
 - npm logs (`~/.npm/_logs/`)

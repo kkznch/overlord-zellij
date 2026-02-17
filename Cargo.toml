@@ -36,6 +36,9 @@ rmcp = { version = "0.14", features = ["server", "transport-io"] }
 tokio = { version = "1", features = ["full"] }
 schemars = "1.2"
 
+# Git repository discovery (worktree support for sandbox)
+gix-discover = "0.47"
+
 # TUI dashboard
 ratatui = "0.29"
 crossterm = "0.28"

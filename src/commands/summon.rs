@@ -4,7 +4,7 @@ use colored::Colorize;
 use std::env;
 
 use crate::config::{
-    ensure_default_config, extract_plugin, generate_mcp_configs, knowledge_dir,
+    config_dir, ensure_default_config, extract_plugin, generate_mcp_configs, knowledge_dir,
     load_session_metadata, relay_dir, resolve_rituals_dir, save_session_metadata,
     validate_rituals_dir, SessionMetadata, AppConfig,
 };
@@ -79,7 +79,8 @@ pub fn execute(config: &AppConfig, debug: bool, sandbox: bool) -> Result<()> {
     // Create sandbox profile if enabled (macOS only)
     let _sandbox_profile = if sandbox {
         if cfg!(target_os = "macos") {
-            let (temp, path) = crate::sandbox::create_temp_profile(&cwd, &relay)?;
+            let ovld_config_dir = config_dir()?;
+            let (temp, path) = crate::sandbox::create_temp_profile(&cwd, &ovld_config_dir)?;
             println!(
                 "{} {}",
                 "Info:".cyan().bold(),
