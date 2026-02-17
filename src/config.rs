@@ -42,13 +42,17 @@ pub fn save_default_config(dir: &Path) -> Result<()> {
 
 const PLUGIN_WASM: &[u8] = include_bytes!("../target/plugin/ovld-notify-plugin.wasm");
 
+const SKILL_FILES: [(&str, &str); 1] = [
+    ("ovld-grow/SKILL.md", include_str!("../claude/skills/ovld-grow/SKILL.md")),
+];
+
 const RITUAL_FILES: [(&str, &str); 6] = [
-    ("overlord.md", include_str!("../rituals/overlord.md")),
-    ("strategist.md", include_str!("../rituals/strategist.md")),
-    ("inferno.md", include_str!("../rituals/inferno.md")),
-    ("glacier.md", include_str!("../rituals/glacier.md")),
-    ("shadow.md", include_str!("../rituals/shadow.md")),
-    ("storm.md", include_str!("../rituals/storm.md")),
+    ("overlord.md", include_str!("../claude/rituals/overlord.md")),
+    ("strategist.md", include_str!("../claude/rituals/strategist.md")),
+    ("inferno.md", include_str!("../claude/rituals/inferno.md")),
+    ("glacier.md", include_str!("../claude/rituals/glacier.md")),
+    ("shadow.md", include_str!("../claude/rituals/shadow.md")),
+    ("storm.md", include_str!("../claude/rituals/storm.md")),
 ];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -165,6 +169,22 @@ pub fn extract_plugin() -> Result<PathBuf> {
     fs::write(&path, PLUGIN_WASM)
         .with_context(|| format!("Failed to write plugin WASM to {:?}", path))?;
     Ok(path)
+}
+
+/// Deploy embedded skills to ~/.claude/skills/
+pub fn deploy_skills() -> Result<()> {
+    let home = env::var("HOME").context("HOME environment variable not set")?;
+    let base = PathBuf::from(home).join(".claude").join("skills");
+    for (rel_path, content) in SKILL_FILES {
+        let path = base.join(rel_path);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)
+                .with_context(|| format!("Failed to create skill directory: {:?}", parent))?;
+        }
+        fs::write(&path, content)
+            .with_context(|| format!("Failed to write skill file: {:?}", path))?;
+    }
+    Ok(())
 }
 
 pub fn generate_mcp_configs(mcp_dir: &Path, relay_dir: &Path, session_name: &str, plugin_path: &Path, debug: bool) -> Result<()> {
