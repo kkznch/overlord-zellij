@@ -350,7 +350,7 @@ mod tests {
         }
         let content = fs::read_to_string(dir.path().join("overlord.md")).unwrap();
         assert!(!content.is_empty());
-        assert!(content.contains("魔王"));
+        assert!(content.contains("Overlord"));
     }
 
     #[test]

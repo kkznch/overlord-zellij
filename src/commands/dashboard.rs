@@ -215,8 +215,8 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: &Messa
                                     let _ = store.send_message(
                                         Role::Overlord,
                                         *role,
-                                        "[HEALTH CHECK] ステータスを更新せよ",
-                                        "working状態が5分以上続いている。update_statusで現在の状態を報告せよ。",
+                                        "[HEALTH CHECK] Report your status",
+                                        &format!("Working status has exceeded {} seconds. Report current state via update_status.", stale_threshold),
                                         Priority::Urgent,
                                     );
                                 }
