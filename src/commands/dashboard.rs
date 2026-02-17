@@ -54,9 +54,10 @@ pub fn execute() -> Result<()> {
 }
 
 fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: &MessageStore, lang: Lang) -> Result<()> {
+    let mut log_scroll: u16 = 0;
     loop {
         let statuses = store.get_all_statuses().unwrap_or_default();
-        let recent = store.recent_messages(5).unwrap_or_default();
+        let recent = store.recent_messages(usize::MAX).unwrap_or_default();
         let now = Utc::now();
 
         terminal.draw(|frame| {
@@ -164,13 +165,16 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: &Messa
                         ])
                     })
                     .collect();
+                let max_scroll = (msg_lines.len() as u16).saturating_sub(chunks[3].height.saturating_sub(1));
+                log_scroll = log_scroll.min(max_scroll);
                 let msgs = Paragraph::new(msg_lines)
-                    .block(Block::default().title(" Recent ").borders(Borders::TOP));
+                    .scroll((log_scroll, 0))
+                    .block(Block::default().title(" Log ").borders(Borders::TOP));
                 frame.render_widget(msgs, chunks[3]);
             }
 
             // Footer
-            let footer = Paragraph::new(" q: quit | data refreshes every 2s")
+            let footer = Paragraph::new(" q: quit | j/k: scroll log | data refreshes every 2s")
                 .style(Style::default().fg(Color::DarkGray))
                 .alignment(Alignment::Center);
             frame.render_widget(footer, chunks[4]);
@@ -178,8 +182,13 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: &Messa
 
         if event::poll(POLL_INTERVAL)? {
             if let Event::Key(key) = event::read()? {
-                if key.kind == KeyEventKind::Press && key.code == KeyCode::Char('q') {
-                    return Ok(());
+                if key.kind == KeyEventKind::Press {
+                    match key.code {
+                        KeyCode::Char('q') => return Ok(()),
+                        KeyCode::Char('j') | KeyCode::Down => log_scroll = log_scroll.saturating_add(1),
+                        KeyCode::Char('k') | KeyCode::Up => log_scroll = log_scroll.saturating_sub(1),
+                        _ => {}
+                    }
                 }
             }
         }
