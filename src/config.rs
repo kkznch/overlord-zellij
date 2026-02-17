@@ -8,14 +8,44 @@ use std::path::{Path, PathBuf};
 use crate::i18n::Lang;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DashboardConfig {
+    #[serde(default = "default_poll_interval_secs")]
+    pub poll_interval_secs: u64,
+    #[serde(default = "default_stale_threshold_secs")]
+    pub stale_threshold_secs: i64,
+}
+
+fn default_poll_interval_secs() -> u64 {
+    2
+}
+
+fn default_stale_threshold_secs() -> i64 {
+    300
+}
+
+impl Default for DashboardConfig {
+    fn default() -> Self {
+        Self {
+            poll_interval_secs: default_poll_interval_secs(),
+            stale_threshold_secs: default_stale_threshold_secs(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
     #[serde(default)]
     pub lang: Lang,
+    #[serde(default)]
+    pub dashboard: DashboardConfig,
 }
 
 impl Default for AppConfig {
     fn default() -> Self {
-        Self { lang: Lang::En }
+        Self {
+            lang: Lang::En,
+            dashboard: DashboardConfig::default(),
+        }
     }
 }
 
@@ -332,7 +362,7 @@ mod tests {
 
     #[test]
     fn test_app_config_toml_roundtrip() {
-        let config = AppConfig { lang: Lang::Ja };
+        let config = AppConfig { lang: Lang::Ja, ..Default::default() };
         let toml_str = toml::to_string_pretty(&config).unwrap();
         let deserialized: AppConfig = toml::from_str(&toml_str).unwrap();
         assert!(matches!(deserialized.lang, Lang::Ja));
@@ -341,7 +371,7 @@ mod tests {
     #[test]
     fn test_lang_all_variants_via_config() {
         for lang in [Lang::En, Lang::Ja] {
-            let config = AppConfig { lang };
+            let config = AppConfig { lang, ..Default::default() };
             let toml_str = toml::to_string_pretty(&config).unwrap();
             let deserialized: AppConfig = toml::from_str(&toml_str).unwrap();
             assert_eq!(config.lang, deserialized.lang);

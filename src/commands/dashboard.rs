@@ -9,13 +9,11 @@ use crossterm::ExecutableCommand;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Cell, Paragraph, Row, Table};
 
-use crate::army::roles::ALL;
-use crate::config;
+use crate::army::roles::{Role, ALL};
+use crate::config::{self, DashboardConfig};
 use crate::i18n::{self, Lang};
 use crate::relay::store::MessageStore;
-use crate::relay::types::Status;
-
-const POLL_INTERVAL: Duration = Duration::from_secs(2);
+use crate::relay::types::{Priority, Status};
 
 fn status_symbol(status: &Status) -> &'static str {
     match status {
@@ -39,13 +37,13 @@ fn format_elapsed(secs: i64) -> String {
 pub fn execute() -> Result<()> {
     let relay_dir = config::relay_dir()?;
     let store = MessageStore::new(relay_dir);
-    let lang = config::load_config().lang;
+    let app_config = config::load_config();
 
     enable_raw_mode()?;
     io::stdout().execute(EnterAlternateScreen)?;
     let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
 
-    let result = run_loop(&mut terminal, &store, lang);
+    let result = run_loop(&mut terminal, &store, app_config.lang, &app_config.dashboard);
 
     disable_raw_mode()?;
     io::stdout().execute(LeaveAlternateScreen)?;
@@ -53,12 +51,23 @@ pub fn execute() -> Result<()> {
     result
 }
 
-fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: &MessageStore, lang: Lang) -> Result<()> {
+fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: &MessageStore, lang: Lang, dashboard_config: &DashboardConfig) -> Result<()> {
+    let poll_interval = Duration::from_secs(dashboard_config.poll_interval_secs);
+    let stale_threshold = dashboard_config.stale_threshold_secs;
     let mut log_scroll: u16 = 0;
+    let mut confirming_health_check = false;
     loop {
         let statuses = store.get_all_statuses().unwrap_or_default();
         let recent = store.recent_messages(usize::MAX).unwrap_or_default();
         let now = Utc::now();
+
+        // Calculate stale roles for confirmation dialog and health check
+        let stale_roles: Vec<Role> = statuses
+            .iter()
+            .filter(|s| matches!(s.status, Status::Working) && (now - s.updated_at).num_seconds() > stale_threshold)
+            .map(|s| s.role)
+            .collect();
+        let stale_count = stale_roles.len();
 
         terminal.draw(|frame| {
             let chunks = Layout::default()
@@ -97,6 +106,12 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: &Messa
                         Status::Done => Style::default().fg(Color::Cyan),
                         Status::Idle => Style::default().fg(Color::DarkGray),
                     };
+                    let is_stale = matches!(s.status, Status::Working) && elapsed > stale_threshold;
+                    let ago_style = if is_stale {
+                        Style::default().fg(Color::Yellow)
+                    } else {
+                        Style::default()
+                    };
                     let pending = if store.has_pending(s.role.as_str()) { " *" } else { "" };
                     let role_key = format!("role.{}", s.role);
                     let role_name = i18n::t(&role_key, lang);
@@ -105,7 +120,7 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: &Messa
                         Cell::from(format!("{} {}", status_symbol(&s.status), s.status))
                             .style(status_style),
                         Cell::from(s.task.clone().unwrap_or_default()),
-                        Cell::from(format_elapsed(elapsed)),
+                        Cell::from(format_elapsed(elapsed)).style(ago_style),
                     ])
                 })
                 .collect();
@@ -174,20 +189,55 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: &Messa
             }
 
             // Footer
-            let footer = Paragraph::new(" q: quit | j/k: scroll log | data refreshes every 2s")
-                .style(Style::default().fg(Color::DarkGray))
+            let footer_text = if confirming_health_check {
+                format!(" Send health check to {} stale role(s)? [y/n]", stale_count)
+            } else {
+                " q: quit | j/k: scroll log | h: health check".to_string()
+            };
+            let footer_style = if confirming_health_check {
+                Style::default().fg(Color::Yellow)
+            } else {
+                Style::default().fg(Color::DarkGray)
+            };
+            let footer = Paragraph::new(footer_text)
+                .style(footer_style)
                 .alignment(Alignment::Center);
             frame.render_widget(footer, chunks[4]);
         })?;
 
-        if event::poll(POLL_INTERVAL)? {
+        if event::poll(poll_interval)? {
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
-                    match key.code {
-                        KeyCode::Char('q') => return Ok(()),
-                        KeyCode::Char('j') | KeyCode::Down => log_scroll = log_scroll.saturating_add(1),
-                        KeyCode::Char('k') | KeyCode::Up => log_scroll = log_scroll.saturating_sub(1),
-                        _ => {}
+                    if confirming_health_check {
+                        match key.code {
+                            KeyCode::Char('y') => {
+                                for role in &stale_roles {
+                                    let _ = store.send_message(
+                                        Role::Overlord,
+                                        *role,
+                                        "[HEALTH CHECK] ステータスを更新せよ",
+                                        "working状態が5分以上続いている。update_statusで現在の状態を報告せよ。",
+                                        Priority::Urgent,
+                                    );
+                                }
+                                confirming_health_check = false;
+                            }
+                            _ => {
+                                confirming_health_check = false;
+                            }
+                        }
+                    } else {
+                        match key.code {
+                            KeyCode::Char('q') => return Ok(()),
+                            KeyCode::Char('j') | KeyCode::Down => log_scroll = log_scroll.saturating_add(1),
+                            KeyCode::Char('k') | KeyCode::Up => log_scroll = log_scroll.saturating_sub(1),
+                            KeyCode::Char('h') => {
+                                if stale_count > 0 {
+                                    confirming_health_check = true;
+                                }
+                            }
+                            _ => {}
+                        }
                     }
                 }
             }
