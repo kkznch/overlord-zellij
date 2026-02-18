@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use std::process::{Command, Stdio};
 use std::thread;
 
@@ -28,8 +28,9 @@ fn build_payload(pane_id: u32, from: Role) -> String {
 ///
 /// Runs in a background thread because `zellij pipe` blocks for several minutes.
 pub fn notify_pane(session: &str, target: Role, from: Role, plugin_path: &str) -> Result<()> {
-    let pane_id = layout::pane_id_for_role(target.as_str())
-        .unwrap_or_else(|| panic!("role '{}' not found in PANE_ORDER", target));
+    let Some(pane_id) = layout::pane_id_for_role(target.as_str()) else {
+        bail!("role '{}' not found in PANE_ORDER", target);
+    };
     let payload = build_payload(pane_id, from);
     let session = session.to_string();
     let plugin = format!("file:{}", plugin_path);

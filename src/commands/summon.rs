@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use chrono::Utc;
 use colored::Colorize;
 use std::env;
@@ -106,7 +106,8 @@ pub fn execute(config: &AppConfig, debug: bool, sandbox: bool) -> Result<()> {
     logging::info(&format!("summon: starting session (cwd={})", cwd.display()));
 
     // Start the session - this blocks until Zellij exits
-    let result = session.start(layout_path.to_str().unwrap());
+    let layout_str = layout_path.to_str().context("layout path is not valid UTF-8")?;
+    let result = session.start(layout_str);
 
     // Clean up EXITED session if it still exists (best-effort)
     if session.exists().unwrap_or(false) {

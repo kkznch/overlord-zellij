@@ -2,6 +2,8 @@ use std::env;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use anyhow::Context;
+
 use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::*;
@@ -441,7 +443,7 @@ mod tests {
 /// Run the MCP relay server (entry point for `ovld relay`)
 pub async fn serve() -> anyhow::Result<()> {
     let role_str = env::var("OVLD_ROLE")
-        .unwrap_or_else(|_| panic!("OVLD_ROLE environment variable must be set"));
+        .context("OVLD_ROLE environment variable must be set")?;
 
     if env::var("OVLD_DEBUG").is_ok() {
         logging::init(&format!("relay-{}", role_str));
@@ -449,30 +451,26 @@ pub async fn serve() -> anyhow::Result<()> {
 
     let role: Role = role_str.parse().map_err(|e: String| anyhow::anyhow!(e))?;
 
-    let relay_dir = env::var("OVLD_RELAY_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
-            let home = env::var("HOME").expect("HOME not set");
-            PathBuf::from(home)
-                .join(".config")
-                .join("ovld")
-                .join("relay")
-        });
+    let relay_dir = match env::var("OVLD_RELAY_DIR") {
+        Ok(dir) => PathBuf::from(dir),
+        Err(_) => {
+            let home = env::var("HOME").context("HOME environment variable not set")?;
+            PathBuf::from(home).join(".config").join("ovld").join("relay")
+        }
+    };
 
     let session_name = env::var("OVLD_SESSION").unwrap_or_else(|_| SESSION_NAME.to_string());
 
     let plugin_path = env::var("OVLD_PLUGIN_PATH")
         .unwrap_or_else(|_| String::new());
 
-    let knowledge_dir = env::var("OVLD_KNOWLEDGE_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
-            let home = env::var("HOME").expect("HOME not set");
-            PathBuf::from(home)
-                .join(".config")
-                .join("ovld")
-                .join("knowledge")
-        });
+    let knowledge_dir = match env::var("OVLD_KNOWLEDGE_DIR") {
+        Ok(dir) => PathBuf::from(dir),
+        Err(_) => {
+            let home = env::var("HOME").context("HOME environment variable not set")?;
+            PathBuf::from(home).join(".config").join("ovld").join("knowledge")
+        }
+    };
 
     let store = Arc::new(
         MessageStore::new(relay_dir)
@@ -486,7 +484,7 @@ pub async fn serve() -> anyhow::Result<()> {
     let server = service
         .serve(rmcp::transport::stdio())
         .await
-        .expect("Failed to start MCP server");
+        .context("Failed to start MCP server")?;
 
     server.waiting().await?;
 

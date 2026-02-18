@@ -67,10 +67,10 @@ fn main() {
         Commands::Status => status::execute(&config),
         Commands::Init { force } => init::execute(force, &config),
         Commands::Dashboard => dashboard::execute(),
-        Commands::Relay => {
-            let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
-            rt.block_on(relay::serve())
-        }
+        Commands::Relay => match tokio::runtime::Runtime::new() {
+            Ok(rt) => rt.block_on(relay::serve()),
+            Err(e) => Err(anyhow::anyhow!("Failed to create tokio runtime: {}", e)),
+        },
     };
 
     if let Err(e) = result {

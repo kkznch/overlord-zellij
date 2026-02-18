@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{Context as _, Result};
 use minijinja::{context, Environment};
 use serde::Serialize;
 use std::env;
@@ -73,7 +73,7 @@ pub fn generate_layout(
     cwd: &Path,
     plugin_path: &Path,
     sandbox_profile: Option<&Path>,
-) -> String {
+) -> Result<String> {
     let ovld_path = env::current_exe().unwrap_or_else(|_| PathBuf::from("ovld"));
 
     let command_agents = vec![
@@ -93,10 +93,10 @@ pub fn generate_layout(
 
     let mut env = Environment::new();
     env.add_template("layout", include_str!("layout.kdl.j2"))
-        .expect("failed to add layout template");
+        .context("failed to add layout template")?;
     let tmpl = env
         .get_template("layout")
-        .expect("failed to get layout template");
+        .context("failed to get layout template")?;
 
     tmpl.render(context! {
         dashboard_name => DASHBOARD_PANE_NAME,
@@ -107,7 +107,7 @@ pub fn generate_layout(
         command_agents,
         battlefield_rows,
     })
-    .expect("failed to render layout template")
+    .context("failed to render layout template")
 }
 
 /// Create a temporary file with the generated layout
@@ -119,7 +119,7 @@ pub fn create_temp_layout(
     plugin_path: &Path,
     sandbox_profile: Option<&Path>,
 ) -> Result<(NamedTempFile, PathBuf)> {
-    let content = generate_layout(rituals_dir, mcp_dir, cwd, plugin_path, sandbox_profile);
+    let content = generate_layout(rituals_dir, mcp_dir, cwd, plugin_path, sandbox_profile)?;
 
     let temp_file = NamedTempFile::with_suffix(".kdl")
         .context("Failed to create temporary layout file")?;
@@ -143,7 +143,7 @@ mod tests {
         let mcp_dir = PathBuf::from("/tmp/mcp");
         let cwd = PathBuf::from("/tmp/project");
         let plugin_path = PathBuf::from("/tmp/plugin.wasm");
-        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None);
+        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None).unwrap();
 
         for role in &["overlord", "strategist", "inferno", "glacier", "shadow", "storm"] {
             assert!(
@@ -165,7 +165,7 @@ mod tests {
         let mcp_dir = PathBuf::from("/tmp/mcp");
         let cwd = PathBuf::from("/tmp/project");
         let plugin_path = PathBuf::from("/tmp/plugin.wasm");
-        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None);
+        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None).unwrap();
 
         assert!(layout.contains("tab name=\"command\""));
         assert!(layout.contains("tab name=\"battlefield\""));
@@ -179,7 +179,7 @@ mod tests {
         let mcp_dir = PathBuf::from("/tmp/mcp");
         let cwd = PathBuf::from("/tmp/project");
         let plugin_path = PathBuf::from("/tmp/plugin.wasm");
-        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None);
+        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None).unwrap();
 
         assert!(layout.contains("pane name=\"dashboard\""));
         let command_tab_start = layout.find("tab name=\"command\"").unwrap();
@@ -196,7 +196,7 @@ mod tests {
         let mcp_dir = PathBuf::from("/tmp/mcp");
         let cwd = PathBuf::from("/tmp/project");
         let plugin_path = PathBuf::from("/tmp/plugin.wasm");
-        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None);
+        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None).unwrap();
 
         let battlefield_start = layout.find("tab name=\"battlefield\"").unwrap();
         let battlefield_section = &layout[battlefield_start..];
@@ -230,7 +230,7 @@ mod tests {
         let cwd = PathBuf::from("/home/user/projects/myproject");
         let plugin_path =
             PathBuf::from("/home/user/.config/ovld/plugins/ovld-notify-plugin.wasm");
-        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None);
+        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None).unwrap();
 
         assert!(layout.contains("command \"claude\""));
         assert!(layout.contains("--system-prompt-file"));
@@ -250,7 +250,7 @@ mod tests {
         let mcp_dir = PathBuf::from("/tmp/mcp");
         let cwd = PathBuf::from("/tmp/project");
         let plugin_path = PathBuf::from("/tmp/plugin.wasm");
-        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None);
+        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None).unwrap();
 
         assert!(layout.contains("--dangerously-skip-permissions"));
     }
@@ -268,7 +268,8 @@ mod tests {
             &cwd,
             &plugin_path,
             Some(&sandbox),
-        );
+        )
+        .unwrap();
 
         assert!(layout.contains("command \"sandbox-exec\""));
         assert!(layout.contains("\"-f\" \"/tmp/sandbox.sb\" \"claude\""));
@@ -281,7 +282,7 @@ mod tests {
         let mcp_dir = PathBuf::from("/tmp/mcp");
         let cwd = PathBuf::from("/tmp/project");
         let plugin_path = PathBuf::from("/tmp/plugin.wasm");
-        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None);
+        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None).unwrap();
 
         // Collect pane name="..." occurrences in order from the layout.
         // This must match PANE_ORDER exactly so pane IDs stay in sync.
