@@ -146,6 +146,8 @@ make install
 
 ## 使い方
 
+> **注意:** 初回実行時、Claude Code は `--dangerously-skip-permissions` の承認確認を求めます。`ovld summon` を実行し、いずれか1つのペインで `yes` と入力してから終了し、再度 `ovld summon` を実行してください。以降は確認が表示されません。
+
 ```bash
 # 魔王軍を召喚
 ovld summon

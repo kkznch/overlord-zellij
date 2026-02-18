@@ -148,6 +148,8 @@ This automatically installs the `wasm32-wasip1` target, builds the WASM notify p
 
 ## Usage
 
+> **Note:** On first use, Claude Code requires a one-time confirmation for `--dangerously-skip-permissions`. Run `ovld summon`, type `yes` in any one pane, then exit and re-run `ovld summon`. Subsequent launches will skip the prompt.
+
 ```bash
 # Summon the Demon Army
 ovld summon
