@@ -12,6 +12,7 @@ use ratatui::widgets::{Block, Borders, Cell, Paragraph, Row, Table};
 use crate::army::roles::{Role, ALL};
 use crate::config::{self, DashboardConfig};
 use crate::i18n::{self, Lang};
+use crate::relay::notify;
 use crate::relay::store::MessageStore;
 use crate::relay::types::{Priority, Status};
 
@@ -64,7 +65,7 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: &Messa
         // Calculate stale roles for confirmation dialog and health check
         let stale_roles: Vec<Role> = statuses
             .iter()
-            .filter(|s| matches!(s.status, Status::Working) && (now - s.updated_at).num_seconds() > stale_threshold)
+            .filter(|s| s.role != Role::Overlord && matches!(s.status, Status::Working) && (now - s.updated_at).num_seconds() > stale_threshold)
             .map(|s| s.role)
             .collect();
         let stale_count = stale_roles.len();
@@ -211,6 +212,8 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: &Messa
                     if confirming_health_check {
                         match key.code {
                             KeyCode::Char('y') => {
+                                let plugin_path = config::plugin_dir()
+                                    .map(|d| d.join("ovld-notify-plugin.wasm"));
                                 for role in &stale_roles {
                                     let _ = store.send_message(
                                         Role::Overlord,
@@ -219,6 +222,10 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: &Messa
                                         &format!("Working status has exceeded {} seconds. Report current state via update_status.", stale_threshold),
                                         Priority::Urgent,
                                     );
+                                    let _ = store.set_pending(role.as_str());
+                                    if let Ok(ref p) = plugin_path {
+                                        let _ = notify::notify_pane(crate::SESSION_NAME, *role, Role::Overlord, &p.display().to_string());
+                                    }
                                 }
                                 confirming_health_check = false;
                             }
