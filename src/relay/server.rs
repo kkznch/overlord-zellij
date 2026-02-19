@@ -16,7 +16,6 @@ use super::store::MessageStore;
 use super::types::{Priority, Status};
 use crate::army::roles::Role;
 use crate::logging;
-use crate::SESSION_NAME;
 
 // --- Tool request types ---
 
@@ -169,15 +168,14 @@ impl RelayService {
                 McpError::internal_error(format!("Failed to set pending: {}", e), None)
             })?;
 
-        if should_notify {
-            if let Err(e) = notify::notify_pane(&self.session_name, target, self.role, &self.plugin_path) {
+        if should_notify
+            && let Err(e) = notify::notify_pane(&self.session_name, target, self.role, &self.plugin_path) {
                 logging::error(&format!("notify failed: from={} to={} err={}", self.role, target, e));
                 return Ok(CallToolResult::success(vec![Content::text(format!(
                     "Message sent to {} (auto-notification failed: {}). Target should check_inbox manually.",
                     target, e
                 ))]));
             }
-        }
 
         Ok(CallToolResult::success(vec![Content::text(format!(
             "Message sent to {}: {}",
@@ -309,11 +307,10 @@ impl RelayService {
                 )
             })?;
 
-            if should_notify {
-                if let Err(e) = notify::notify_pane(&self.session_name, target, self.role, &self.plugin_path) {
+            if should_notify
+                && let Err(e) = notify::notify_pane(&self.session_name, target, self.role, &self.plugin_path) {
                     logging::error(&format!("broadcast notify failed: to={} err={}", target, e));
                 }
-            }
             sent_to.push(target.as_str());
         }
 
@@ -459,7 +456,8 @@ pub async fn serve() -> anyhow::Result<()> {
         }
     };
 
-    let session_name = env::var("OVLD_SESSION").unwrap_or_else(|_| SESSION_NAME.to_string());
+    let session_name = env::var("OVLD_SESSION")
+        .context("OVLD_SESSION environment variable must be set")?;
 
     let plugin_path = env::var("OVLD_PLUGIN_PATH")
         .unwrap_or_else(|_| String::new());

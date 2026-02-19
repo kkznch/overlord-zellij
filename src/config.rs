@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -86,9 +87,14 @@ const RITUAL_FILES: [(&str, &str); 6] = [
 ];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SessionMetadata {
+pub struct SessionEntry {
     pub cwd: PathBuf,
     pub started_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SessionRegistry {
+    pub sessions: HashMap<String, SessionEntry>,
 }
 
 pub fn config_dir() -> Result<PathBuf> {
@@ -96,50 +102,115 @@ pub fn config_dir() -> Result<PathBuf> {
     Ok(PathBuf::from(home).join(".config").join("ovld"))
 }
 
-pub fn relay_dir() -> Result<PathBuf> {
-    Ok(config_dir()?.join("relay"))
+pub fn session_dir(session_name: &str) -> Result<PathBuf> {
+    Ok(config_dir()?.join("sessions").join(session_name))
+}
+
+pub fn relay_dir(session_name: &str) -> Result<PathBuf> {
+    Ok(session_dir(session_name)?.join("relay"))
 }
 
 pub fn knowledge_dir() -> Result<PathBuf> {
     Ok(config_dir()?.join("knowledge"))
 }
 
-fn session_metadata_path() -> Result<PathBuf> {
-    Ok(config_dir()?.join("session.json"))
+fn registry_path() -> Result<PathBuf> {
+    Ok(config_dir()?.join("registry.json"))
 }
 
-pub fn save_session_metadata(metadata: &SessionMetadata) -> Result<()> {
-    let path = session_metadata_path()?;
+pub fn load_registry() -> Result<SessionRegistry> {
+    let path = registry_path()?;
+    if !path.exists() {
+        return Ok(SessionRegistry::default());
+    }
+    let content = fs::read_to_string(&path)
+        .with_context(|| format!("Failed to read session registry from {:?}", path))?;
+    let registry: SessionRegistry = serde_json::from_str(&content)
+        .with_context(|| format!("Failed to parse session registry from {:?}", path))?;
+    Ok(registry)
+}
+
+pub fn save_registry(registry: &SessionRegistry) -> Result<()> {
+    let path = registry_path()?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
             .with_context(|| format!("Failed to create config directory: {:?}", parent))?;
     }
-    let content = serde_json::to_string_pretty(metadata)
-        .context("Failed to serialize session metadata")?;
+    let content = serde_json::to_string_pretty(registry)
+        .context("Failed to serialize session registry")?;
     fs::write(&path, content)
-        .with_context(|| format!("Failed to write session metadata to {:?}", path))?;
+        .with_context(|| format!("Failed to write session registry to {:?}", path))?;
     Ok(())
 }
 
-pub fn load_session_metadata() -> Result<Option<SessionMetadata>> {
-    let path = session_metadata_path()?;
-    if !path.exists() {
-        return Ok(None);
-    }
-    let content = fs::read_to_string(&path)
-        .with_context(|| format!("Failed to read session metadata from {:?}", path))?;
-    let metadata: SessionMetadata = serde_json::from_str(&content)
-        .with_context(|| format!("Failed to parse session metadata from {:?}", path))?;
-    Ok(Some(metadata))
+pub fn register_session(name: &str, cwd: &Path) -> Result<()> {
+    let mut registry = load_registry()?;
+    registry.sessions.insert(
+        name.to_string(),
+        SessionEntry {
+            cwd: cwd.to_path_buf(),
+            started_at: Utc::now(),
+        },
+    );
+    save_registry(&registry)
 }
 
-pub fn delete_session_metadata() -> Result<()> {
-    let path = session_metadata_path()?;
-    if path.exists() {
-        fs::remove_file(&path)
-            .with_context(|| format!("Failed to delete session metadata at {:?}", path))?;
+pub fn unregister_session(name: &str) -> Result<()> {
+    let mut registry = load_registry()?;
+    registry.sessions.remove(name);
+    save_registry(&registry)
+}
+
+pub fn find_session_by_cwd(cwd: &Path) -> Result<Option<(String, SessionEntry)>> {
+    let registry = load_registry()?;
+    Ok(registry
+        .sessions
+        .into_iter()
+        .find(|(_, entry)| entry.cwd == cwd))
+}
+
+/// Derive a session name from the working directory.
+/// Pattern: `ovld-{sanitized_dirname}` (lowercase, [a-z0-9_-] only).
+/// If a collision exists in the registry (same name, different cwd), appends `-2`, `-3`, etc.
+pub fn derive_session_name(cwd: &Path) -> Result<String> {
+    let dirname = cwd
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "unnamed".to_string());
+
+    let sanitized: String = dirname
+        .to_lowercase()
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
+        .collect();
+
+    let base = if sanitized.is_empty() {
+        "unnamed".to_string()
+    } else {
+        sanitized
+    };
+
+    let base_name = format!("ovld-{}", base);
+    let registry = load_registry()?;
+
+    // No collision
+    if !registry.sessions.contains_key(&base_name)
+        || registry.sessions[&base_name].cwd == cwd
+    {
+        return Ok(base_name);
     }
-    Ok(())
+
+    // Collision: try suffixes
+    for i in 2.. {
+        let candidate = format!("{}-{}", base_name, i);
+        if !registry.sessions.contains_key(&candidate)
+            || registry.sessions[&candidate].cwd == cwd
+        {
+            return Ok(candidate);
+        }
+    }
+
+    unreachable!()
 }
 
 /// Resolve rituals directory: ./rituals/ (local) → ~/.config/ovld/rituals/ (global)
@@ -376,5 +447,186 @@ mod tests {
             let deserialized: AppConfig = toml::from_str(&toml_str).unwrap();
             assert_eq!(config.lang, deserialized.lang);
         }
+    }
+
+    #[test]
+    fn test_session_registry_roundtrip() {
+        let dir = TempDir::new().unwrap();
+        let registry_file = dir.path().join("registry.json");
+
+        let mut registry = SessionRegistry::default();
+        registry.sessions.insert(
+            "ovld-myproject".to_string(),
+            SessionEntry {
+                cwd: PathBuf::from("/tmp/myproject"),
+                started_at: Utc::now(),
+            },
+        );
+
+        let content = serde_json::to_string_pretty(&registry).unwrap();
+        fs::write(&registry_file, &content).unwrap();
+        let loaded: SessionRegistry =
+            serde_json::from_str(&fs::read_to_string(&registry_file).unwrap()).unwrap();
+        assert_eq!(loaded.sessions.len(), 1);
+        assert!(loaded.sessions.contains_key("ovld-myproject"));
+        assert_eq!(
+            loaded.sessions["ovld-myproject"].cwd,
+            PathBuf::from("/tmp/myproject")
+        );
+    }
+
+    #[test]
+    fn test_derive_session_name_basic() {
+        // derive_session_name calls load_registry() which reads from HOME.
+        // We test the sanitization logic directly here.
+        let sanitize = |s: &str| -> String {
+            let lower = s.to_lowercase();
+            let clean: String = lower
+                .chars()
+                .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
+                .collect();
+            let base = if clean.is_empty() {
+                "unnamed".to_string()
+            } else {
+                clean
+            };
+            format!("ovld-{}", base)
+        };
+        assert_eq!(sanitize("my-project"), "ovld-my-project");
+        assert_eq!(sanitize("MyApp.v2"), "ovld-myappv2");
+        assert_eq!(sanitize("HELLO_world"), "ovld-hello_world");
+        assert_eq!(sanitize("..."), "ovld-unnamed");
+    }
+
+    #[test]
+    fn test_session_dir_path_structure() {
+        let dir = session_dir("ovld-myproject").unwrap();
+        assert!(
+            dir.ends_with("sessions/ovld-myproject"),
+            "session_dir should be <config>/sessions/<name>, got {:?}",
+            dir
+        );
+    }
+
+    #[test]
+    fn test_relay_dir_path_structure() {
+        let dir = relay_dir("ovld-myproject").unwrap();
+        assert!(
+            dir.ends_with("sessions/ovld-myproject/relay"),
+            "relay_dir should be <config>/sessions/<name>/relay, got {:?}",
+            dir
+        );
+    }
+
+    #[test]
+    fn test_register_and_unregister_logic() {
+        let mut registry = SessionRegistry::default();
+
+        // Register two sessions
+        registry.sessions.insert(
+            "ovld-alpha".to_string(),
+            SessionEntry {
+                cwd: PathBuf::from("/tmp/alpha"),
+                started_at: Utc::now(),
+            },
+        );
+        registry.sessions.insert(
+            "ovld-beta".to_string(),
+            SessionEntry {
+                cwd: PathBuf::from("/tmp/beta"),
+                started_at: Utc::now(),
+            },
+        );
+        assert_eq!(registry.sessions.len(), 2);
+
+        // Unregister one
+        registry.sessions.remove("ovld-alpha");
+        assert_eq!(registry.sessions.len(), 1);
+        assert!(!registry.sessions.contains_key("ovld-alpha"));
+        assert!(registry.sessions.contains_key("ovld-beta"));
+
+        // Unregister nonexistent is a no-op
+        registry.sessions.remove("ovld-nonexistent");
+        assert_eq!(registry.sessions.len(), 1);
+    }
+
+    #[test]
+    fn test_derive_session_name_collision_suffix() {
+        let mut registry = SessionRegistry::default();
+        registry.sessions.insert(
+            "ovld-app".to_string(),
+            SessionEntry {
+                cwd: PathBuf::from("/tmp/project-a/app"),
+                started_at: Utc::now(),
+            },
+        );
+
+        // Same derived name, different cwd → needs suffix
+        let base_name = "ovld-app";
+        let new_cwd = PathBuf::from("/tmp/project-b/app");
+
+        // Simulate derive_session_name collision logic
+        let result = if !registry.sessions.contains_key(base_name)
+            || registry.sessions[base_name].cwd == new_cwd
+        {
+            base_name.to_string()
+        } else {
+            let mut found = None;
+            for i in 2..100 {
+                let candidate = format!("{}-{}", base_name, i);
+                if !registry.sessions.contains_key(&candidate)
+                    || registry.sessions[&candidate].cwd == new_cwd
+                {
+                    found = Some(candidate);
+                    break;
+                }
+            }
+            found.unwrap()
+        };
+
+        assert_eq!(result, "ovld-app-2");
+
+        // Same cwd → no suffix needed
+        let same_cwd = PathBuf::from("/tmp/project-a/app");
+        let result_same = if !registry.sessions.contains_key(base_name)
+            || registry.sessions[base_name].cwd == same_cwd
+        {
+            base_name.to_string()
+        } else {
+            unreachable!()
+        };
+        assert_eq!(result_same, "ovld-app");
+    }
+
+    #[test]
+    fn test_find_session_by_cwd_logic() {
+        let mut registry = SessionRegistry::default();
+        registry.sessions.insert(
+            "ovld-foo".to_string(),
+            SessionEntry {
+                cwd: PathBuf::from("/tmp/foo"),
+                started_at: Utc::now(),
+            },
+        );
+        registry.sessions.insert(
+            "ovld-bar".to_string(),
+            SessionEntry {
+                cwd: PathBuf::from("/tmp/bar"),
+                started_at: Utc::now(),
+            },
+        );
+
+        let found = registry
+            .sessions
+            .iter()
+            .find(|(_, e)| e.cwd == PathBuf::from("/tmp/foo"));
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().0, "ovld-foo");
+
+        let not_found = registry
+            .sessions
+            .iter()
+            .find(|(_, e)| e.cwd == PathBuf::from("/tmp/baz"));
+        assert!(not_found.is_none());
     }
 }

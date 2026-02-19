@@ -73,6 +73,8 @@ pub fn generate_layout(
     cwd: &Path,
     plugin_path: &Path,
     sandbox_profile: Option<&Path>,
+    session_name: &str,
+    relay_dir: &Path,
 ) -> Result<String> {
     let ovld_path = env::current_exe().unwrap_or_else(|_| PathBuf::from("ovld"));
 
@@ -104,6 +106,8 @@ pub fn generate_layout(
         ovld_path => ovld_path.display().to_string(),
         plugin_path => plugin_path.display().to_string(),
         sandbox_profile => sandbox_profile.map(|p| p.display().to_string()),
+        session_name => session_name,
+        relay_dir => relay_dir.display().to_string(),
         command_agents,
         battlefield_rows,
     })
@@ -118,8 +122,10 @@ pub fn create_temp_layout(
     cwd: &Path,
     plugin_path: &Path,
     sandbox_profile: Option<&Path>,
+    session_name: &str,
+    relay_dir: &Path,
 ) -> Result<(NamedTempFile, PathBuf)> {
-    let content = generate_layout(rituals_dir, mcp_dir, cwd, plugin_path, sandbox_profile)?;
+    let content = generate_layout(rituals_dir, mcp_dir, cwd, plugin_path, sandbox_profile, session_name, relay_dir)?;
 
     let temp_file = NamedTempFile::with_suffix(".kdl")
         .context("Failed to create temporary layout file")?;
@@ -143,7 +149,7 @@ mod tests {
         let mcp_dir = PathBuf::from("/tmp/mcp");
         let cwd = PathBuf::from("/tmp/project");
         let plugin_path = PathBuf::from("/tmp/plugin.wasm");
-        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None).unwrap();
+        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None, "ovld-test", Path::new("/tmp/relay")).unwrap();
 
         for role in &["overlord", "strategist", "inferno", "glacier", "shadow", "storm"] {
             assert!(
@@ -165,7 +171,7 @@ mod tests {
         let mcp_dir = PathBuf::from("/tmp/mcp");
         let cwd = PathBuf::from("/tmp/project");
         let plugin_path = PathBuf::from("/tmp/plugin.wasm");
-        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None).unwrap();
+        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None, "ovld-test", Path::new("/tmp/relay")).unwrap();
 
         assert!(layout.contains("tab name=\"command\""));
         assert!(layout.contains("tab name=\"battlefield\""));
@@ -179,7 +185,7 @@ mod tests {
         let mcp_dir = PathBuf::from("/tmp/mcp");
         let cwd = PathBuf::from("/tmp/project");
         let plugin_path = PathBuf::from("/tmp/plugin.wasm");
-        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None).unwrap();
+        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None, "ovld-test", Path::new("/tmp/relay")).unwrap();
 
         assert!(layout.contains("pane name=\"dashboard\""));
         let command_tab_start = layout.find("tab name=\"command\"").unwrap();
@@ -196,7 +202,7 @@ mod tests {
         let mcp_dir = PathBuf::from("/tmp/mcp");
         let cwd = PathBuf::from("/tmp/project");
         let plugin_path = PathBuf::from("/tmp/plugin.wasm");
-        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None).unwrap();
+        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None, "ovld-test", Path::new("/tmp/relay")).unwrap();
 
         let battlefield_start = layout.find("tab name=\"battlefield\"").unwrap();
         let battlefield_section = &layout[battlefield_start..];
@@ -213,7 +219,7 @@ mod tests {
         let cwd = PathBuf::from("/tmp/project");
         let plugin_path = PathBuf::from("/tmp/plugin.wasm");
         let (temp_file, path) =
-            create_temp_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None).unwrap();
+            create_temp_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None, "ovld-test", Path::new("/tmp/relay")).unwrap();
 
         assert!(path.exists());
         assert!(path.to_string_lossy().ends_with(".kdl"));
@@ -230,7 +236,7 @@ mod tests {
         let cwd = PathBuf::from("/home/user/projects/myproject");
         let plugin_path =
             PathBuf::from("/home/user/.config/ovld/plugins/ovld-notify-plugin.wasm");
-        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None).unwrap();
+        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None, "ovld-test", Path::new("/tmp/relay")).unwrap();
 
         assert!(layout.contains("command \"claude\""));
         assert!(layout.contains("--system-prompt-file"));
@@ -250,7 +256,7 @@ mod tests {
         let mcp_dir = PathBuf::from("/tmp/mcp");
         let cwd = PathBuf::from("/tmp/project");
         let plugin_path = PathBuf::from("/tmp/plugin.wasm");
-        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None).unwrap();
+        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None, "ovld-test", Path::new("/tmp/relay")).unwrap();
 
         assert!(layout.contains("--dangerously-skip-permissions"));
     }
@@ -268,6 +274,8 @@ mod tests {
             &cwd,
             &plugin_path,
             Some(&sandbox),
+            "ovld-test",
+            Path::new("/tmp/relay"),
         )
         .unwrap();
 
@@ -282,7 +290,7 @@ mod tests {
         let mcp_dir = PathBuf::from("/tmp/mcp");
         let cwd = PathBuf::from("/tmp/project");
         let plugin_path = PathBuf::from("/tmp/plugin.wasm");
-        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None).unwrap();
+        let layout = generate_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, None, "ovld-test", Path::new("/tmp/relay")).unwrap();
 
         // Collect pane name="..." occurrences in order from the layout.
         // This must match PANE_ORDER exactly so pane IDs stay in sync.
@@ -296,6 +304,38 @@ mod tests {
             actual_order, PANE_ORDER,
             "PANE_ORDER must match the pane appearance order in generate_layout()"
         );
+    }
+
+    #[test]
+    fn test_generate_layout_contains_env_vars() {
+        let rituals_dir = PathBuf::from("/tmp/rituals");
+        let mcp_dir = PathBuf::from("/tmp/mcp");
+        let cwd = PathBuf::from("/tmp/project");
+        let plugin_path = PathBuf::from("/tmp/plugin.wasm");
+        let layout = generate_layout(
+            &rituals_dir, &mcp_dir, &cwd, &plugin_path, None,
+            "ovld-myproject", Path::new("/home/user/.config/ovld/sessions/ovld-myproject/relay"),
+        ).unwrap();
+
+        // Dashboard pane should have OVLD_SESSION and OVLD_RELAY_DIR env vars
+        assert!(
+            layout.contains("OVLD_SESSION \"ovld-myproject\""),
+            "Layout should contain OVLD_SESSION env var"
+        );
+        assert!(
+            layout.contains("OVLD_RELAY_DIR \"/home/user/.config/ovld/sessions/ovld-myproject/relay\""),
+            "Layout should contain OVLD_RELAY_DIR env var"
+        );
+
+        // Env vars should be inside the dashboard pane (command tab), not in battlefield
+        let command_tab_start = layout.find("tab name=\"command\"").unwrap();
+        let battlefield_tab_start = layout.find("tab name=\"battlefield\"").unwrap();
+        let command_section = &layout[command_tab_start..battlefield_tab_start];
+        assert!(command_section.contains("OVLD_SESSION"));
+        assert!(command_section.contains("OVLD_RELAY_DIR"));
+
+        let battlefield_section = &layout[battlefield_tab_start..];
+        assert!(!battlefield_section.contains("OVLD_SESSION"));
     }
 
     #[test]

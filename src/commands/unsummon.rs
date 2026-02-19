@@ -1,30 +1,28 @@
 use anyhow::{bail, Result};
 use colored::Colorize;
+use std::env;
 use std::io::{self, Write};
 
-use crate::config::AppConfig;
+use crate::config::{find_session_by_cwd, load_registry, AppConfig};
 use crate::i18n;
 use crate::zellij::ZellijSession;
-use crate::SESSION_NAME;
 
-pub fn execute(force: bool, config: &AppConfig) -> Result<()> {
-    let lang = config.lang;
-    let session = ZellijSession::new(SESSION_NAME);
+/// Unsummon a single session by name.
+fn unsummon_one(session_name: &str, force: bool, lang: crate::i18n::Lang) -> Result<()> {
+    let session = ZellijSession::new(session_name);
 
-    // Check if session exists
     if !session.exists()? {
         bail!(
             "{}",
-            i18n::tf("unsummon.not_found", lang, &[("name", SESSION_NAME)])
+            i18n::tf("unsummon.not_found", lang, &[("name", session_name)])
         );
     }
 
-    // Confirm unless force flag is set
     if !force {
         print!(
             "{} {}",
             "Warning:".yellow().bold(),
-            i18n::tf("unsummon.confirm", lang, &[("name", SESSION_NAME)])
+            i18n::tf("unsummon.confirm", lang, &[("name", session_name)])
         );
         io::stdout().flush()?;
 
@@ -44,23 +42,64 @@ pub fn execute(force: bool, config: &AppConfig) -> Result<()> {
     println!(
         "{} {}",
         "Overlord:".red().bold(),
-        i18n::tf("unsummon.in_progress", lang, &[("name", SESSION_NAME)])
+        i18n::tf("unsummon.in_progress", lang, &[("name", session_name)])
     );
 
-    // Kill the session
     session.kill()?;
-
-    // Delete session data for complete cleanup
     let _ = session.delete(true);
-
-    // Clean up session metadata and relay data
-    super::cleanup_session_data();
+    super::cleanup_session_data(session_name);
 
     println!(
         "{} {}",
         "Success:".green().bold(),
-        i18n::tf("unsummon.success", lang, &[("name", SESSION_NAME)])
+        i18n::tf("unsummon.success", lang, &[("name", session_name)])
     );
 
     Ok(())
+}
+
+pub fn execute(name: Option<String>, all: bool, force: bool, config: &AppConfig) -> Result<()> {
+    let lang = config.lang;
+
+    if all {
+        // Unsummon all registered sessions
+        let registry = load_registry()?;
+        if registry.sessions.is_empty() {
+            println!(
+                "{} {}",
+                "Info:".cyan().bold(),
+                i18n::t("unsummon.no_sessions", lang)
+            );
+            return Ok(());
+        }
+        let names: Vec<String> = registry.sessions.keys().cloned().collect();
+        for session_name in names {
+            if let Err(e) = unsummon_one(&session_name, force, lang) {
+                eprintln!(
+                    "{} {}: {}",
+                    "Warning:".yellow().bold(),
+                    session_name,
+                    e
+                );
+            }
+        }
+        return Ok(());
+    }
+
+    // Resolve session name: explicit arg > cwd lookup
+    let session_name = match name {
+        Some(n) => n,
+        None => {
+            let cwd = env::current_dir()?;
+            match find_session_by_cwd(&cwd)? {
+                Some((n, _)) => n,
+                None => bail!(
+                    "{}",
+                    i18n::t("unsummon.no_session_for_cwd", lang)
+                ),
+            }
+        }
+    };
+
+    unsummon_one(&session_name, force, lang)
 }

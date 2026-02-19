@@ -5,6 +5,10 @@ layout {
             pane name="{{ dashboard_name }}" size="50%" cwd="{{ cwd }}" {
                 command "{{ ovld_path }}"
                 args "dashboard"
+                env {
+                    OVLD_SESSION "{{ session_name }}"
+                    OVLD_RELAY_DIR "{{ relay_dir }}"
+                }
             }
             pane split_direction="horizontal" size="50%" {
 {%- for agent in command_agents %}

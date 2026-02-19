@@ -3,16 +3,13 @@ use std::path::Path;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum Lang {
+    #[default]
     En,
     Ja,
 }
 
-impl Default for Lang {
-    fn default() -> Self {
-        Lang::En
-    }
-}
 
 /// All translatable messages in the CLI.
 /// Each variant returns a &'static str for the given language.
@@ -29,6 +26,8 @@ pub fn t(key: &str, lang: Lang) -> &'static str {
         ("summon.ritual_files", Lang::Ja) => "儀式ファイル: {path}",
         ("summon.session_ended", Lang::En) => "Session '{name}' has ended.",
         ("summon.session_ended", Lang::Ja) => "セッション '{name}' が終了しました。",
+        ("summon.attaching", Lang::En) => "Session '{name}' is already running. Attaching...",
+        ("summon.attaching", Lang::Ja) => "セッション '{name}' は稼働中です。接続します...",
 
         // === unsummon ===
         ("unsummon.not_found", Lang::En) => "Session '{name}' not found. Nothing to unsummon.",
@@ -41,6 +40,10 @@ pub fn t(key: &str, lang: Lang) -> &'static str {
         ("unsummon.in_progress", Lang::Ja) => "セッション '{name}' を還送中...",
         ("unsummon.success", Lang::En) => "Army unsummoned. Session '{name}' terminated.",
         ("unsummon.success", Lang::Ja) => "魔王軍を還送しました。セッション '{name}' を終了しました。",
+        ("unsummon.no_sessions", Lang::En) => "No active sessions found.",
+        ("unsummon.no_sessions", Lang::Ja) => "アクティブなセッションはありません。",
+        ("unsummon.no_session_for_cwd", Lang::En) => "No session found for current directory. Use `ovld unsummon <name>` or `ovld unsummon --all`.",
+        ("unsummon.no_session_for_cwd", Lang::Ja) => "このディレクトリに対応するセッションがありません。`ovld unsummon <name>` または `ovld unsummon --all` を使ってください。",
 
         // === status ===
         ("status.header", Lang::En) => "=== Army Status ===",
@@ -53,6 +56,10 @@ pub fn t(key: &str, lang: Lang) -> &'static str {
         ("status.active", Lang::Ja) => "展開中",
         ("status.not_summoned", Lang::En) => "NOT SUMMONED",
         ("status.not_summoned", Lang::Ja) => "未召喚",
+        ("status.dead", Lang::En) => "DEAD",
+        ("status.dead", Lang::Ja) => "停止",
+        ("status.no_sessions", Lang::En) => "No registered sessions.",
+        ("status.no_sessions", Lang::Ja) => "登録されたセッションはありません。",
         ("status.cwd", Lang::En) => "Working dir:",
         ("status.cwd", Lang::Ja) => "作業場所:",
         ("status.started_at", Lang::En) => "Summoned at:",
@@ -161,6 +168,27 @@ mod tests {
         let path = PathBuf::from("/home/user/project");
         let result = path_str(&path);
         assert!(result.contains("/home/user/project"));
+    }
+
+    #[test]
+    fn test_per_session_i18n_keys() {
+        let keys = [
+            "summon.attaching",
+            "unsummon.no_sessions",
+            "unsummon.no_session_for_cwd",
+            "status.dead",
+            "status.no_sessions",
+        ];
+        for key in keys {
+            for lang in [Lang::En, Lang::Ja] {
+                assert_ne!(
+                    t(key, lang),
+                    "[unknown message]",
+                    "Key '{}' should have a translation for {:?}",
+                    key, lang
+                );
+            }
+        }
     }
 
     #[test]

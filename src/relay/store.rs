@@ -182,13 +182,11 @@ impl MessageStore {
             }
             let entries = fs::read_dir(&inbox)?;
             for entry in entries.filter_map(|e| e.ok()) {
-                if entry.path().extension().is_some_and(|ext| ext == "json") {
-                    if let Ok(content) = fs::read_to_string(entry.path()) {
-                        if let Ok(msg) = serde_json::from_str::<Message>(&content) {
+                if entry.path().extension().is_some_and(|ext| ext == "json")
+                    && let Ok(content) = fs::read_to_string(entry.path())
+                        && let Ok(msg) = serde_json::from_str::<Message>(&content) {
                             all_messages.push(msg);
                         }
-                    }
-                }
             }
         }
 
@@ -246,7 +244,7 @@ impl MessageStore {
 
         let mut insights = Vec::new();
         for entry in fs::read_dir(dir)?.filter_map(|e| e.ok()) {
-            if !entry.path().extension().is_some_and(|ext| ext == "json") {
+            if entry.path().extension().is_none_or(|ext| ext != "json") {
                 continue;
             }
             let content = fs::read_to_string(entry.path())?;
@@ -256,11 +254,10 @@ impl MessageStore {
             };
 
             // Filter by category
-            if let Some(cat) = category {
-                if insight.category != cat {
+            if let Some(cat) = category
+                && insight.category != cat {
                     continue;
                 }
-            }
 
             // Filter by keyword (searches title, content, and tags)
             if let Some(kw) = keyword {

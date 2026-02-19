@@ -1,7 +1,4 @@
-## Purpose
-ovld CLIツールのサブコマンド（summon, unsummon, status, init, dashboard, relay）を定義する。
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: summon コマンドでセッション開始
 `summon` サブコマンドで新しい Zellij セッションを魔王軍レイアウトで開始しなければならない (SHALL)。セッション名はカレントディレクトリから動的に導出する。出力メッセージは i18n モジュール経由で言語設定に従って表示する。デフォルトでサンドボックスが有効であり、`--no-sandbox` フラグで無効化できなければならない (SHALL)。
@@ -68,40 +65,3 @@ ovld CLIツールのサブコマンド（summon, unsummon, status, init, dashboa
 #### Scenario: セッションなし
 - **WHEN** ユーザーが `ovld status` を実行し、cwd にセッションが存在しない時
 - **THEN** ステータスと summon コマンドのヒントが設定された言語で表示される
-
-### Requirement: init コマンドでグローバル設定を展開
-`init` サブコマンドでグローバル設定ディレクトリにデフォルト儀式ファイルを展開しなければならない (SHALL)。出力メッセージは i18n モジュール経由で言語設定に従って表示する。
-
-#### Scenario: 初回展開
-- **WHEN** ユーザーが `ovld init` を実行し、`~/.config/ovld/rituals/` が存在しない時
-- **THEN** デフォルト儀式ファイルと `config.toml` がグローバル設定ディレクトリに展開される
-
-#### Scenario: 既存設定がある場合
-- **WHEN** ユーザーが `ovld init` を実行し、`~/.config/ovld/rituals/` が既に存在する時
-- **THEN** 既に展開済みであるメッセージが設定された言語で表示され、上書きはしない
-
-#### Scenario: 強制再展開
-- **WHEN** ユーザーが `ovld init --force` を実行した時
-- **THEN** 既存の儀式ファイルと `config.toml` を上書きしてデフォルトに戻す
-
-### Requirement: dashboard コマンドでリアルタイムステータス表示
-`dashboard` サブコマンドでリアルタイム魔王軍ステータスダッシュボード（TUI）を起動しなければならない (SHALL)。
-
-#### Scenario: ダッシュボード起動
-- **WHEN** ユーザーが `ovld dashboard` を実行した時
-- **THEN** ratatui ベースの TUI ダッシュボードがターミナル全画面で起動する
-
-#### Scenario: ヘルプに表示
-- **WHEN** ユーザーが `ovld --help` を実行した時
-- **THEN** `dashboard` サブコマンドがヘルプ出力に表示される
-
-### Requirement: relay サブコマンド
-エージェント間通信用の MCP サーバーを起動する隠しサブコマンド `relay` を提供しなければならない (SHALL)。
-
-#### Scenario: relay サーバー起動
-- **WHEN** `OVLD_ROLE`、`OVLD_RELAY_DIR`、`OVLD_SESSION` 環境変数付きで `ovld relay` を実行した時
-- **THEN** stdio トランスポートで5つのツールが登録された MCP サーバーが起動する
-
-#### Scenario: ヘルプに非表示
-- **WHEN** ユーザーが `ovld --help` を実行した時
-- **THEN** `relay` サブコマンドはヘルプ出力に表示されない

@@ -29,13 +29,24 @@ enum Commands {
 
     /// unsummon - 魔王軍を還送（セッション終了）
     Unsummon {
+        /// 還送するセッション名（省略時はカレントディレクトリから検索）
+        name: Option<String>,
+
         /// 確認なしで強制還送
         #[arg(short, long)]
         force: bool,
+
+        /// 全セッションを一括還送
+        #[arg(long)]
+        all: bool,
     },
 
     /// status - 魔王軍の状態を確認
-    Status,
+    Status {
+        /// 全セッションの一覧を表示
+        #[arg(long)]
+        all: bool,
+    },
 
     /// init - グローバル設定を（再）展開
     Init {
@@ -63,8 +74,8 @@ fn main() {
 
     let result = match cli.command {
         Commands::Summon { no_sandbox } => summon::execute(&config, cli.debug, !no_sandbox),
-        Commands::Unsummon { force } => unsummon::execute(force, &config),
-        Commands::Status => status::execute(&config),
+        Commands::Unsummon { name, force, all } => unsummon::execute(name, all, force, &config),
+        Commands::Status { all } => status::execute(all, &config),
         Commands::Init { force } => init::execute(force, &config),
         Commands::Dashboard => dashboard::execute(),
         Commands::Relay => match tokio::runtime::Runtime::new() {

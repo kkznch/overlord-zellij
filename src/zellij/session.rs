@@ -53,7 +53,20 @@ impl ZellijSession {
         Ok(())
     }
 
-    /// Check if session exists
+    /// Attach to an existing session (blocks until detach)
+    pub fn attach(&self) -> Result<()> {
+        let status = Command::new("zellij")
+            .args(["attach", &self.name])
+            .status()
+            .context("Failed to attach to Zellij session")?;
+
+        if !status.success() {
+            anyhow::bail!("Zellij attach exited with status: {}", status);
+        }
+        Ok(())
+    }
+
+    /// Check if session exists (exact match on session name)
     pub fn exists(&self) -> Result<bool> {
         let output = Command::new("zellij")
             .args(["list-sessions"])
@@ -61,7 +74,10 @@ impl ZellijSession {
             .context("Failed to list Zellij sessions")?;
 
         let sessions = String::from_utf8_lossy(&output.stdout);
-        Ok(sessions.lines().any(|line| line.contains(&self.name)))
+        Ok(sessions.lines().any(|line| {
+            line.split_whitespace()
+                .next()
+                .is_some_and(|name| name == self.name)
+        }))
     }
-
 }

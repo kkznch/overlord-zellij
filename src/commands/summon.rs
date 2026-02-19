@@ -1,38 +1,48 @@
-use anyhow::{bail, Context, Result};
-use chrono::Utc;
+use anyhow::{Context, Result};
 use colored::Colorize;
 use std::env;
 
 use crate::config::{
-    config_dir, ensure_default_config, extract_plugin, generate_mcp_configs, knowledge_dir,
-    load_session_metadata, relay_dir, resolve_rituals_dir, save_session_metadata,
-    validate_rituals_dir, SessionMetadata, AppConfig,
+    config_dir, derive_session_name, ensure_default_config, extract_plugin, find_session_by_cwd,
+    generate_mcp_configs, knowledge_dir, register_session, relay_dir, resolve_rituals_dir,
+    unregister_session, validate_rituals_dir, AppConfig,
 };
 use crate::i18n;
 use crate::layout::create_temp_layout;
 use crate::logging;
 use crate::relay::store::MessageStore;
 use crate::zellij::ZellijSession;
-use crate::SESSION_NAME;
 
 pub fn execute(config: &AppConfig, debug: bool, sandbox: bool) -> Result<()> {
     let lang = config.lang;
-    let session = ZellijSession::new(SESSION_NAME);
     let cwd = env::current_dir()?;
 
-    // Check if session already exists
-    if session.exists()? {
-        if let Some(meta) = load_session_metadata()? {
-            bail!(
-                "{}",
-                i18n::tf("summon.already_exists_with_cwd", lang, &[("cwd", &i18n::path_str(&meta.cwd))])
+    // Check if a session already exists for this cwd
+    if let Some((existing_name, _entry)) = find_session_by_cwd(&cwd)? {
+        let session = ZellijSession::new(&existing_name);
+        if session.exists()? {
+            // Session is alive — auto-attach
+            println!(
+                "{} {}",
+                "Info:".cyan().bold(),
+                i18n::tf("summon.attaching", lang, &[("name", &existing_name)])
             );
-        } else {
-            bail!(
-                "{}",
-                i18n::tf("summon.already_exists", lang, &[("name", SESSION_NAME)])
-            );
+            return session.attach();
         }
+        // Session is dead — purge orphan and recreate
+        let _ = unregister_session(&existing_name);
+    }
+
+    // Derive a new session name from cwd
+    let session_name = derive_session_name(&cwd)?;
+    let session = ZellijSession::new(&session_name);
+
+    // Double-check: if a Zellij session with this name already exists (outside registry), bail
+    if session.exists()? {
+        anyhow::bail!(
+            "{}",
+            i18n::tf("summon.already_exists", lang, &[("name", &session_name)])
+        );
     }
 
     // Ensure default config exists (creates ~/.config/ovld/rituals/ if needed)
@@ -44,8 +54,8 @@ pub fn execute(config: &AppConfig, debug: bool, sandbox: bool) -> Result<()> {
     // Validate ritual files exist
     validate_rituals_dir(&rituals_dir)?;
 
-    // Initialize relay directory structure
-    let relay = relay_dir()?;
+    // Initialize relay directory structure (per-session)
+    let relay = relay_dir(&session_name)?;
     let knowledge = knowledge_dir()?;
     std::fs::create_dir_all(&knowledge)?;
     let store = MessageStore::new(relay.clone())
@@ -57,13 +67,10 @@ pub fn execute(config: &AppConfig, debug: bool, sandbox: bool) -> Result<()> {
 
     // Generate per-role MCP configs
     let mcp_dir = relay.join("mcp");
-    generate_mcp_configs(&mcp_dir, &relay, SESSION_NAME, &plugin_path, debug)?;
+    generate_mcp_configs(&mcp_dir, &relay, &session_name, &plugin_path, debug)?;
 
-    // Save session metadata
-    save_session_metadata(&SessionMetadata {
-        cwd: cwd.clone(),
-        started_at: Utc::now(),
-    })?;
+    // Register session in registry
+    register_session(&session_name, &cwd)?;
 
     println!(
         "{} {}",
@@ -82,16 +89,14 @@ pub fn execute(config: &AppConfig, debug: bool, sandbox: bool) -> Result<()> {
             let ovld_config_dir = config_dir()?;
             let (temp, path) = crate::sandbox::create_temp_profile(&cwd, &ovld_config_dir)?;
             println!(
-                "{} {}",
-                "Info:".cyan().bold(),
-                "Sandbox enabled: file writes restricted to project directory"
+                "{} Sandbox enabled: file writes restricted to project directory",
+                "Info:".cyan().bold()
             );
             Some((temp, path))
         } else {
             eprintln!(
-                "{} {}",
-                "Warning:".yellow().bold(),
-                "Sandbox is only supported on macOS. Skipping."
+                "{} Sandbox is only supported on macOS. Skipping.",
+                "Warning:".yellow().bold()
             );
             None
         }
@@ -101,9 +106,11 @@ pub fn execute(config: &AppConfig, debug: bool, sandbox: bool) -> Result<()> {
     let sandbox_path = _sandbox_profile.as_ref().map(|(_, p)| p.as_path());
 
     // Generate layout with absolute paths to ritual files, MCP configs, and cwd
-    let (_temp_file, layout_path) = create_temp_layout(&rituals_dir, &mcp_dir, &cwd, &plugin_path, sandbox_path)?;
+    let (_temp_file, layout_path) = create_temp_layout(
+        &rituals_dir, &mcp_dir, &cwd, &plugin_path, sandbox_path, &session_name, &relay,
+    )?;
 
-    logging::info(&format!("summon: starting session (cwd={})", cwd.display()));
+    logging::info(&format!("summon: starting session {} (cwd={})", session_name, cwd.display()));
 
     // Start the session - this blocks until Zellij exits
     let layout_str = layout_path.to_str().context("layout path is not valid UTF-8")?;
@@ -114,7 +121,7 @@ pub fn execute(config: &AppConfig, debug: bool, sandbox: bool) -> Result<()> {
         let _ = session.kill();
         let _ = session.delete(true);
     }
-    super::cleanup_session_data();
+    super::cleanup_session_data(&session_name);
 
     // Handle the result
     result?;
@@ -124,7 +131,7 @@ pub fn execute(config: &AppConfig, debug: bool, sandbox: bool) -> Result<()> {
     println!(
         "{} {}",
         "Info:".cyan().bold(),
-        i18n::tf("summon.session_ended", lang, &[("name", SESSION_NAME)])
+        i18n::tf("summon.session_ended", lang, &[("name", &session_name)])
     );
 
     Ok(())

@@ -1,4 +1,6 @@
+use std::env;
 use std::io;
+use std::path::PathBuf;
 use std::time::Duration;
 
 use anyhow::Result;
@@ -36,7 +38,11 @@ fn format_elapsed(secs: i64) -> String {
 }
 
 pub fn execute() -> Result<()> {
-    let relay_dir = config::relay_dir()?;
+    let relay_dir = match env::var("OVLD_RELAY_DIR") {
+        Ok(dir) => PathBuf::from(dir),
+        Err(_) => config::config_dir()?.join("relay"),
+    };
+    let session_name = env::var("OVLD_SESSION").unwrap_or_else(|_| "overlord".to_string());
     let store = MessageStore::new(relay_dir);
     let app_config = config::load_config();
 
@@ -44,7 +50,7 @@ pub fn execute() -> Result<()> {
     io::stdout().execute(EnterAlternateScreen)?;
     let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
 
-    let result = run_loop(&mut terminal, &store, app_config.lang, &app_config.dashboard);
+    let result = run_loop(&mut terminal, &store, app_config.lang, &app_config.dashboard, &session_name);
 
     disable_raw_mode()?;
     io::stdout().execute(LeaveAlternateScreen)?;
@@ -52,7 +58,7 @@ pub fn execute() -> Result<()> {
     result
 }
 
-fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: &MessageStore, lang: Lang, dashboard_config: &DashboardConfig) -> Result<()> {
+fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: &MessageStore, lang: Lang, dashboard_config: &DashboardConfig, session_name: &str) -> Result<()> {
     let poll_interval = Duration::from_secs(dashboard_config.poll_interval_secs);
     let stale_threshold = dashboard_config.stale_threshold_secs;
     let mut log_scroll: u16 = 0;
@@ -206,9 +212,9 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: &Messa
             frame.render_widget(footer, chunks[4]);
         })?;
 
-        if event::poll(poll_interval)? {
-            if let Event::Key(key) = event::read()? {
-                if key.kind == KeyEventKind::Press {
+        if event::poll(poll_interval)?
+            && let Event::Key(key) = event::read()?
+                && key.kind == KeyEventKind::Press {
                     if confirming_health_check {
                         match key.code {
                             KeyCode::Char('y') => {
@@ -224,7 +230,7 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: &Messa
                                     );
                                     let _ = store.set_pending(role.as_str());
                                     if let Ok(ref p) = plugin_path {
-                                        let _ = notify::notify_pane(crate::SESSION_NAME, *role, Role::Overlord, &p.display().to_string());
+                                        let _ = notify::notify_pane(session_name, *role, Role::Overlord, &p.display().to_string());
                                     }
                                 }
                                 confirming_health_check = false;
@@ -247,7 +253,5 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: &Messa
                         }
                     }
                 }
-            }
-        }
     }
 }
