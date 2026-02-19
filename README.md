@@ -61,26 +61,29 @@ This distributes workload across Claude instances and enables efficient developm
 
 ## Architecture
 
-Each Claude instance communicates through an MCP relay server backed by file-based message storage:
+Each Claude instance communicates through an MCP relay server backed by file-based message storage. A persistent knowledge system allows insights to be shared and retained across sessions:
 
 ```
-┌─ Zellij Session ──────────────────────────────────┐
-│                                                    │
-│  [Overlord]   ←─ MCP ─→  ovld relay               │
-│  [Strategist] ←─ MCP ─→  ovld relay               │
-│  [Inferno]    ←─ MCP ─→  ovld relay               │
-│  [Glacier]    ←─ MCP ─→  ovld relay               │
-│  [Shadow]     ←─ MCP ─→  ovld relay               │
-│  [Storm]      ←─ MCP ─→  ovld relay               │
-│                    ↕                               │
-│          ~/.config/ovld/relay/                     │
-│          ├── inbox/{role}/     (messages)           │
-│          ├── status/{role}.json                    │
-│          └── pending/{role}    (notify flags)      │
-│                    ↕                               │
-│      zellij pipe → WASM plugin → pane STDIN        │
-│      (auto-notification on new messages)           │
-└────────────────────────────────────────────────────┘
+┌─ Zellij Session (ovld-{project}) ─────────────────────┐
+│                                                        │
+│  [Overlord]   ←─ MCP ─→  ovld relay                   │
+│  [Strategist] ←─ MCP ─→  ovld relay                   │
+│  [Inferno]    ←─ MCP ─→  ovld relay                   │
+│  [Glacier]    ←─ MCP ─→  ovld relay                   │
+│  [Shadow]     ←─ MCP ─→  ovld relay                   │
+│  [Storm]      ←─ MCP ─→  ovld relay                   │
+│                    ↕                                   │
+│    ~/.config/ovld/sessions/{session}/relay/             │
+│    ├── inbox/{role}/     (messages)                     │
+│    ├── status/{role}.json                              │
+│    └── pending/{role}    (notify flags)                 │
+│                    ↕                                   │
+│    zellij pipe → WASM plugin → pane STDIN              │
+│    (auto-notification on new messages)                 │
+│                                                        │
+│    ~/.config/ovld/knowledge/  (persistent insights)    │
+│    └── {category}/{id}.json                            │
+└────────────────────────────────────────────────────────┘
 ```
 
 **MCP Tools** available to each Claude instance:
@@ -91,44 +94,39 @@ Each Claude instance communicates through an MCP relay server backed by file-bas
 | `get_status` | Check a role's current status (or all roles) |
 | `update_status` | Update own status (idle / working / blocked / done) |
 | `broadcast` | Send a message to all other roles |
+| `share_insight` | Save a persistent insight to the knowledge base |
+| `query_insights` | Search the knowledge base by category/keyword |
 
 ## Layout Structure
 
-The Zellij session consists of 4 tabs:
+The Zellij session consists of 2 tabs:
 
 ```
 ┌─────────────────────────────────────────────┐
 │ Tab 1: command (default focus)              │
-│ ┌──────────┬────────────────────────────────┤
-│ │ Overlord │        Strategist              │
-│ │  (30%)   │          (70%)                 │
-│ ├──────────┴────────────────────────────────┤
-│ │ [notify plugin] (borderless, 1 line)      │
-│ └───────────────────────────────────────────┤
+│ ┌────────────┬─────────────────────────────┐│
+│ │            │         Overlord            ││
+│ │ Dashboard  │          (50%)              ││
+│ │   (50%)    ├─────────────────────────────┤│
+│ │            │        Strategist           ││
+│ │            │          (50%)              ││
+│ ├────────────┴─────────────────────────────┤│
+│ │ [notify plugin] (borderless, 1 line)     ││
+│ └──────────────────────────────────────────┘│
 ├─────────────────────────────────────────────┤
 │ Tab 2: battlefield                          │
-│ ┌───────────────────────────────────────────┤
-│ │                 Inferno                   │
-│ │              (full size)                  │
-│ └───────────────────────────────────────────┤
-├─────────────────────────────────────────────┤
-│ Tab 3: support                              │
-│ ┌─────────────┬─────────────┬───────────────┤
-│ │   Glacier   │   Shadow    │    Storm      │
-│ │    (33%)    │    (33%)    │    (34%)      │
-│ └─────────────┴─────────────┴───────────────┤
-├─────────────────────────────────────────────┤
-│ Tab 4: dashboard                            │
-│ ┌───────────────────────────────────────────┤
-│ │           ovld dashboard (TUI)            │
-│ │          real-time army status            │
-│ └───────────────────────────────────────────┘
+│ ┌─────────────────┬────────────────────────┐│
+│ │     Glacier      │       Inferno         ││
+│ │      (50%)       │        (50%)          ││
+│ ├─────────────────┼────────────────────────┤│
+│ │     Shadow       │        Storm          ││
+│ │      (50%)       │        (50%)          ││
+│ └─────────────────┴────────────────────────┘│
+└─────────────────────────────────────────────┘
 ```
 
-- **command**: Headquarters. Requirements definition and task management
-- **battlefield**: Main battlefield. Primary implementation work
-- **support**: Support troops. Architecture, testing, documentation
-- **dashboard**: Real-time TUI showing all role statuses, tasks, and recent messages
+- **command**: Headquarters. Dashboard monitors army status in real-time; Overlord defines requirements and Strategist manages tasks
+- **battlefield**: All Four Heavenly Kings work in a 2x2 grid, each handling their specialty
 
 The notify plugin is a minimal WASM pane that routes inter-pane notifications without switching focus.
 
@@ -151,7 +149,7 @@ This automatically installs the `wasm32-wasip1` target, builds the WASM notify p
 > **Note:** On first use, Claude Code requires a one-time confirmation for `--dangerously-skip-permissions`. Run `ovld summon`, type `yes` in any one pane, then exit and re-run `ovld summon`. Subsequent launches will skip the prompt.
 
 ```bash
-# Summon the Demon Army
+# Summon the Demon Army (session name derived from current directory)
 ovld summon
 
 # Summon with debug logging
@@ -160,17 +158,26 @@ ovld summon --debug
 # Summon without sandbox (allow writes outside project directory)
 ovld summon --no-sandbox
 
-# Real-time army status dashboard (TUI)
-ovld dashboard
+# Re-running in the same directory auto-attaches to existing session
+ovld summon  # attaches if session already exists
 
-# Check army status (one-shot)
+# Check army status for current project
 ovld status
 
-# Unsummon the Demon Army
+# List all active sessions
+ovld status --all
+
+# Unsummon the Demon Army (current project)
 ovld unsummon
+
+# Unsummon a specific session by name
+ovld unsummon ovld-myproject
 
 # Force unsummon without confirmation
 ovld unsummon --force
+
+# Unsummon all sessions at once
+ovld unsummon --all
 
 # Deploy/redeploy global config
 ovld init
@@ -229,7 +236,14 @@ When `ovld summon` is executed:
 2. Falls back to global `~/.config/ovld/rituals/` if not found
 3. Auto-creates default rituals in global config on first run
 
-### 2. Dynamic Layout Generation
+### 2. Session Management
+1. Session name is derived from the current directory: `ovld-{sanitized_dirname}` (lowercase, `[a-z0-9_-]` only)
+2. If a session already exists for the same directory, auto-attaches to it instead of creating a new one
+3. Multiple sessions can run in parallel for different projects
+4. Sessions are tracked in a registry at `~/.config/ovld/registry.json`
+5. Each session has isolated relay data at `~/.config/ovld/sessions/{session}/relay/`
+
+### 3. Dynamic Layout Generation
 1. Generates a KDL layout dynamically with absolute paths to ritual files and MCP configs
 2. Each pane starts `claude --dangerously-skip-permissions --system-prompt-file <ritual> --mcp-config <mcp_config>`
 3. On macOS with sandbox enabled, `claude` is wrapped with `sandbox-exec -f <profile>`
@@ -237,21 +251,23 @@ When `ovld summon` is executed:
 5. A WASM notify plugin pane is included for inter-pane notification routing
 6. Creates a temporary KDL file that's cleaned up after session ends
 
-### 3. Session Management
-1. Creates a new Zellij session with the generated layout
-2. CLI blocks until the Zellij session ends (user exits or detaches)
-3. Automatically cleans up EXITED sessions, metadata, and relay data on exit
-
 ### 4. MCP Relay Communication
-Each Claude pane spawns an `ovld relay` process as its MCP server. The relay uses a shared file-based store:
+Each Claude pane spawns an `ovld relay` process as its MCP server. The relay uses a per-session file-based store:
 
-- **Inbox**: Messages are written as JSON files to `~/.config/ovld/relay/inbox/{role}/`
-- **Status**: Each role's status is stored in `~/.config/ovld/relay/status/{role}.json`
-- **Pending**: Flag files in `~/.config/ovld/relay/pending/` track which roles have unread messages
+- **Inbox**: Messages are written as JSON files to `~/.config/ovld/sessions/{session}/relay/inbox/{role}/`
+- **Status**: Each role's status is stored in `~/.config/ovld/sessions/{session}/relay/status/{role}.json`
+- **Pending**: Flag files in `~/.config/ovld/sessions/{session}/relay/pending/` track which roles have unread messages
 
 Environment variables passed to each relay: `OVLD_ROLE`, `OVLD_RELAY_DIR`, `OVLD_SESSION`, `OVLD_PLUGIN_PATH`.
 
-### 5. Auto-Notification
+### 5. Knowledge System
+Roles can share and query persistent insights via MCP tools:
+- `share_insight`: Save categorized insights (patterns, debugging tips, architecture decisions)
+- `query_insights`: Search by category or keyword
+
+Knowledge is stored at `~/.config/ovld/knowledge/` and persists across sessions, enabling the army to learn and improve over time.
+
+### 6. Auto-Notification
 When a message is sent via `send_message`:
 1. The message is saved to the target role's inbox
 2. A pending flag is set for the target role (deduplicated — only once per check cycle)
@@ -259,12 +275,12 @@ When a message is sent via `send_message`:
 4. The plugin writes a notification text directly to the target pane's STDIN
 5. The receiving Claude instance sees the notification and calls `check_inbox` to retrieve messages
 
-### 6. Operational Flow
+### 7. Operational Flow
 1. Issue requirements to Overlord in **command** tab
 2. Strategist decomposes tasks and directs Four Heavenly Kings
-3. **Inferno** does main implementation in **battlefield** tab
-4. **Glacier/Shadow/Storm** provide support in **support** tab
-5. Roles communicate autonomously via MCP relay tools
+3. Four Heavenly Kings work in the **battlefield** tab (2x2 grid)
+4. Roles communicate autonomously via MCP relay tools
+5. Dashboard in **command** tab shows real-time status of all roles
 
 ## Directory Structure
 
@@ -273,7 +289,7 @@ overlord-zellij/
 ├── src/
 │   ├── main.rs           # CLI entry point
 │   ├── lib.rs            # Library exports & constants
-│   ├── config.rs         # Config, ritual resolution, MCP config generation
+│   ├── config.rs         # Config, session registry, ritual resolution, MCP config generation
 │   ├── layout.rs         # Dynamic KDL layout generation
 │   ├── sandbox.rs        # macOS Seatbelt sandbox profile generation
 │   ├── logging.rs        # Debug logging (--debug)
@@ -282,10 +298,10 @@ overlord-zellij/
 │   ├── zellij/           # Zellij session management
 │   ├── army/             # Role definitions & icons
 │   └── relay/            # MCP relay server
-│       ├── server.rs     # 5 MCP tools (send_message, check_inbox, etc.)
-│       ├── store.rs      # File-based message persistence
+│       ├── server.rs     # 7 MCP tools (send_message, check_inbox, share_insight, etc.)
+│       ├── store.rs      # File-based message persistence & knowledge store
 │       ├── notify.rs     # Zellij pipe notification
-│       └── types.rs      # Message, RoleStatus, Priority types
+│       └── types.rs      # Message, Insight, RoleStatus, Priority types
 ├── plugin/               # Zellij WASM plugin (pane notification)
 ├── rituals/              # System prompts for each role
 │   ├── overlord.md
@@ -303,6 +319,7 @@ For detailed specifications, see `openspec/specs/`:
 - `ovld-cli/` - CLI command specification
 - `army-hierarchy/` - Hierarchy & role specification
 - `zellij-session/` - Session management & layout specification
+- `session-registry/` - Session registry & multi-session specification
 - `config-management/` - Global config & ritual resolution specification
 - `dashboard/` - Real-time TUI dashboard specification
 - `sandbox/` - macOS Seatbelt sandbox specification

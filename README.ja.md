@@ -59,26 +59,29 @@ Glacier (型定義) → Inferno (ロジック実装) → Shadow (テスト)
 
 ## アーキテクチャ
 
-各Claudeインスタンスはファイルベースのメッセージストアを持つMCPリレーサーバーを通じて通信する：
+各Claudeインスタンスはファイルベースのメッセージストアを持つMCPリレーサーバーを通じて通信する。永続的な知見共有システムにより、セッションを超えてインサイトを蓄積・活用できる：
 
 ```
-┌─ Zellij Session ──────────────────────────────────┐
-│                                                    │
-│  [Overlord]   ←─ MCP ─→  ovld relay               │
-│  [Strategist] ←─ MCP ─→  ovld relay               │
-│  [Inferno]    ←─ MCP ─→  ovld relay               │
-│  [Glacier]    ←─ MCP ─→  ovld relay               │
-│  [Shadow]     ←─ MCP ─→  ovld relay               │
-│  [Storm]      ←─ MCP ─→  ovld relay               │
-│                    ↕                               │
-│          ~/.config/ovld/relay/                     │
-│          ├── inbox/{role}/     (メッセージ)          │
-│          ├── status/{role}.json                    │
-│          └── pending/{role}    (通知フラグ)          │
-│                    ↕                               │
-│      zellij pipe → WASMプラグイン → ペインSTDIN      │
-│      (新着メッセージ時に自動通知)                      │
-└────────────────────────────────────────────────────┘
+┌─ Zellij Session (ovld-{project}) ─────────────────────┐
+│                                                        │
+│  [Overlord]   ←─ MCP ─→  ovld relay                   │
+│  [Strategist] ←─ MCP ─→  ovld relay                   │
+│  [Inferno]    ←─ MCP ─→  ovld relay                   │
+│  [Glacier]    ←─ MCP ─→  ovld relay                   │
+│  [Shadow]     ←─ MCP ─→  ovld relay                   │
+│  [Storm]      ←─ MCP ─→  ovld relay                   │
+│                    ↕                                   │
+│    ~/.config/ovld/sessions/{session}/relay/             │
+│    ├── inbox/{role}/     (メッセージ)                     │
+│    ├── status/{role}.json                              │
+│    └── pending/{role}    (通知フラグ)                     │
+│                    ↕                                   │
+│    zellij pipe → WASMプラグイン → ペインSTDIN             │
+│    (新着メッセージ時に自動通知)                              │
+│                                                        │
+│    ~/.config/ovld/knowledge/  (永続的な知見ベース)          │
+│    └── {category}/{id}.json                            │
+└────────────────────────────────────────────────────────┘
 ```
 
 各Claudeインスタンスが使える **MCPツール**：
@@ -89,44 +92,39 @@ Glacier (型定義) → Inferno (ロジック実装) → Shadow (テスト)
 | `get_status` | ロールの現在のステータスを確認（全員分も可） |
 | `update_status` | 自分のステータスを更新（idle / working / blocked / done） |
 | `broadcast` | 他の全ロールにメッセージを一斉送信 |
+| `share_insight` | 永続的な知見ベースにインサイトを保存 |
+| `query_insights` | カテゴリ・キーワードで知見を検索 |
 
 ## レイアウト構成
 
-Zellijセッションは4つのタブで構成：
+Zellijセッションは2つのタブで構成：
 
 ```
 ┌─────────────────────────────────────────────┐
 │ Tab 1: command（デフォルトフォーカス）          │
-│ ┌──────────┬────────────────────────────────┤
-│ │ Overlord │        Strategist              │
-│ │  (30%)   │          (70%)                 │
-│ ├──────────┴────────────────────────────────┤
-│ │ [通知プラグイン] (borderless, 1行)          │
-│ └───────────────────────────────────────────┤
+│ ┌────────────┬─────────────────────────────┐│
+│ │            │         Overlord            ││
+│ │ Dashboard  │          (50%)              ││
+│ │   (50%)    ├─────────────────────────────┤│
+│ │            │        Strategist           ││
+│ │            │          (50%)              ││
+│ ├────────────┴─────────────────────────────┤│
+│ │ [通知プラグイン] (borderless, 1行)         ││
+│ └──────────────────────────────────────────┘│
 ├─────────────────────────────────────────────┤
 │ Tab 2: battlefield                          │
-│ ┌───────────────────────────────────────────┤
-│ │                 Inferno                   │
-│ │             (フルサイズ)                    │
-│ └───────────────────────────────────────────┤
-├─────────────────────────────────────────────┤
-│ Tab 3: support                              │
-│ ┌─────────────┬─────────────┬───────────────┤
-│ │   Glacier   │   Shadow    │    Storm      │
-│ │    (33%)    │    (33%)    │    (34%)      │
-│ └─────────────┴─────────────┴───────────────┤
-├─────────────────────────────────────────────┤
-│ Tab 4: dashboard                            │
-│ ┌───────────────────────────────────────────┤
-│ │        ovld dashboard（TUI）               │
-│ │        リアルタイム軍勢ステータス             │
-│ └───────────────────────────────────────────┘
+│ ┌─────────────────┬────────────────────────┐│
+│ │     Glacier      │       Inferno         ││
+│ │      (50%)       │        (50%)          ││
+│ ├─────────────────┼────────────────────────┤│
+│ │     Shadow       │        Storm          ││
+│ │      (50%)       │        (50%)          ││
+│ └─────────────────┴────────────────────────┘│
+└─────────────────────────────────────────────┘
 ```
 
-- **command**: 司令部。要件定義とタスク管理
-- **battlefield**: 主戦場。メインの実装作業
-- **support**: 補助部隊。アーキテクチャ・テスト・ドキュメント
-- **dashboard**: リアルタイムTUI。全ロールの状態・タスク・最新メッセージを表示
+- **command**: 司令部。ダッシュボードがリアルタイムで軍勢の状態を監視し、魔王が要件を定義、軍師がタスクを管理
+- **battlefield**: 戦場。四天王が2x2グリッドでそれぞれの専門分野を担当
 
 通知プラグインはフォーカスを切り替えずにペイン間通知をルーティングする最小限のWASMペイン。
 
@@ -149,7 +147,7 @@ make install
 > **注意:** 初回実行時、Claude Code は `--dangerously-skip-permissions` の承認確認を求めます。`ovld summon` を実行し、いずれか1つのペインで `yes` と入力してから終了し、再度 `ovld summon` を実行してください。以降は確認が表示されません。
 
 ```bash
-# 魔王軍を召喚
+# 魔王軍を召喚（セッション名はカレントディレクトリから自動導出）
 ovld summon
 
 # デバッグログ付きで召喚
@@ -158,17 +156,26 @@ ovld summon --debug
 # サンドボックスなしで召喚（プロジェクト外への書き込みを許可）
 ovld summon --no-sandbox
 
-# リアルタイム軍勢ステータスダッシュボード（TUI）
-ovld dashboard
+# 同じディレクトリで再実行すると既存セッションに自動接続
+ovld summon  # セッションが存在すればアタッチ
 
-# 軍勢の状況確認（ワンショット）
+# 現在のプロジェクトの軍勢の状況確認
 ovld status
 
-# 魔王軍を還送
+# 全アクティブセッションの一覧
+ovld status --all
+
+# 魔王軍を還送（現在のプロジェクト）
 ovld unsummon
+
+# 特定のセッションを名前指定で還送
+ovld unsummon ovld-myproject
 
 # 確認なしで還送
 ovld unsummon --force
+
+# 全セッションを一括還送
+ovld unsummon --all
 
 # グローバル設定を（再）展開
 ovld init
@@ -183,7 +190,8 @@ macOS では `ovld summon` 実行時、各 Claude エージェントを [Seatbel
 
 **書き込みが許可されるパス：**
 - プロジェクトディレクトリ（カレントディレクトリ）
-- relay ディレクトリ（`~/.config/ovld/relay/`）
+- Gitリポジトリルート（worktreeサポート）
+- 設定ディレクトリ（`~/.config/ovld/`）
 - Claude 設定（`~/.claude/`、`~/.claude.json`）
 - Claude CLI キャッシュ（`~/Library/Caches/claude-cli-nodejs/`）
 - npm ログ（`~/.npm/_logs/`）
@@ -226,7 +234,14 @@ cp -r ~/.config/ovld/rituals ./rituals
 2. 無ければグローバルの `~/.config/ovld/rituals/` にフォールバック
 3. 初回実行時はデフォルト儀式を自動作成
 
-### 2. 動的レイアウト生成
+### 2. セッション管理
+1. セッション名はカレントディレクトリから導出: `ovld-{sanitized_dirname}`（小文字、`[a-z0-9_-]` のみ）
+2. 同じディレクトリのセッションが既に存在する場合、新規作成ではなく自動アタッチ
+3. 異なるプロジェクトで複数セッションを並行稼働可能
+4. セッションは `~/.config/ovld/registry.json` のレジストリで管理
+5. 各セッションのリレーデータは `~/.config/ovld/sessions/{session}/relay/` に分離
+
+### 3. 動的レイアウト生成
 1. 儀式ファイルとMCP設定への絶対パスを含むKDLレイアウトを動的生成
 2. 各ペインで `claude --dangerously-skip-permissions --system-prompt-file <ritual> --mcp-config <mcp_config>` を起動
 3. macOS でサンドボックス有効時、`claude` コマンドは `sandbox-exec -f <profile>` でラップされる
@@ -234,21 +249,23 @@ cp -r ~/.config/ovld/rituals ./rituals
 5. ペイン間通知ルーティング用のWASM通知プラグインペインを含む
 6. セッション終了後にテンポラリKDLファイルを自動クリーンアップ
 
-### 3. セッション管理
-1. 生成したレイアウトで新しいZellijセッションを作成
-2. CLIはZellijセッションが終了するまでブロック
-3. 終了時にEXITEDセッション・メタデータ・リレーデータを自動クリーンアップ
-
 ### 4. MCPリレー通信
-各Claudeペインが `ovld relay` プロセスをMCPサーバーとして起動。リレーは共有ファイルベースストアを使用：
+各Claudeペインが `ovld relay` プロセスをMCPサーバーとして起動。リレーはセッションごとのファイルベースストアを使用：
 
-- **受信箱**: メッセージはJSONファイルとして `~/.config/ovld/relay/inbox/{role}/` に保存
-- **ステータス**: 各ロールの状態が `~/.config/ovld/relay/status/{role}.json` に格納
-- **保留通知**: `~/.config/ovld/relay/pending/` のフラグファイルで未読メッセージを持つロールを追跡
+- **受信箱**: メッセージはJSONファイルとして `~/.config/ovld/sessions/{session}/relay/inbox/{role}/` に保存
+- **ステータス**: 各ロールの状態が `~/.config/ovld/sessions/{session}/relay/status/{role}.json` に格納
+- **保留通知**: `~/.config/ovld/sessions/{session}/relay/pending/` のフラグファイルで未読メッセージを持つロールを追跡
 
 各リレーに渡される環境変数: `OVLD_ROLE`, `OVLD_RELAY_DIR`, `OVLD_SESSION`, `OVLD_PLUGIN_PATH`
 
-### 5. 自動通知
+### 5. 知見共有システム
+ロールはMCPツールを通じて永続的な知見を共有・検索できる：
+- `share_insight`: カテゴリ別にインサイトを保存（パターン、デバッグTips、アーキテクチャ判断）
+- `query_insights`: カテゴリ・キーワードで検索
+
+知見は `~/.config/ovld/knowledge/` に保存され、セッションを超えて永続化される。これにより魔王軍は時間とともに学習・改善していく。
+
+### 6. 自動通知
 `send_message` でメッセージが送信されると：
 1. メッセージがターゲットロールの受信箱に保存される
 2. ターゲットロールにpendingフラグが設定される（重複排除 — チェックサイクルごとに1回のみ）
@@ -256,12 +273,12 @@ cp -r ~/.config/ovld/rituals ./rituals
 4. プラグインがターゲットペインのSTDINに通知テキストを直接書き込む
 5. 受信側のClaudeインスタンスが通知を確認し、`check_inbox` でメッセージを取得
 
-### 6. 運用フロー
+### 7. 運用フロー
 1. **command** タブで魔王に要件を伝える
 2. 軍師がタスクを分解し、四天王に指示
-3. **battlefield** タブで **Inferno** がメイン実装
-4. **support** タブで **Glacier/Shadow/Storm** が支援
-5. ロール間はMCPリレーツールで自律的に通信
+3. 四天王は **battlefield** タブの2x2グリッドで作業
+4. ロール間はMCPリレーツールで自律的に通信
+5. **command** タブのダッシュボードで全ロールの状態をリアルタイム監視
 
 ## ディレクトリ構成
 
@@ -270,7 +287,7 @@ overlord-zellij/
 ├── src/
 │   ├── main.rs           # CLIエントリーポイント
 │   ├── lib.rs            # ライブラリエクスポート・定数
-│   ├── config.rs         # 設定、儀式解決、MCP設定生成
+│   ├── config.rs         # 設定、セッションレジストリ、儀式解決、MCP設定生成
 │   ├── layout.rs         # 動的KDLレイアウト生成
 │   ├── sandbox.rs        # macOS Seatbelt サンドボックスプロファイル生成
 │   ├── logging.rs        # デバッグログ (--debug)
@@ -279,10 +296,10 @@ overlord-zellij/
 │   ├── zellij/           # Zellijセッション管理
 │   ├── army/             # 役職定義・アイコン
 │   └── relay/            # MCPリレーサーバー
-│       ├── server.rs     # 5つのMCPツール (send_message, check_inbox 等)
-│       ├── store.rs      # ファイルベースのメッセージ永続化
+│       ├── server.rs     # 7つのMCPツール (send_message, check_inbox, share_insight 等)
+│       ├── store.rs      # ファイルベースのメッセージ永続化 & 知見ストア
 │       ├── notify.rs     # Zellij pipe通知
-│       └── types.rs      # Message, RoleStatus, Priority 型定義
+│       └── types.rs      # Message, Insight, RoleStatus, Priority 型定義
 ├── plugin/               # Zellij WASMプラグイン（ペイン通知）
 ├── rituals/              # 各役職のシステムプロンプト
 │   ├── overlord.md
@@ -300,6 +317,7 @@ overlord-zellij/
 - `ovld-cli/` - CLIコマンド仕様
 - `army-hierarchy/` - 階層構造・役職仕様
 - `zellij-session/` - セッション管理・レイアウト仕様
+- `session-registry/` - セッションレジストリ・マルチセッション仕様
 - `config-management/` - グローバル設定・儀式解決仕様
 - `dashboard/` - リアルタイムTUIダッシュボード仕様
 - `sandbox/` - macOS Seatbelt サンドボックス仕様
