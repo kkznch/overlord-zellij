@@ -56,7 +56,15 @@ enum Commands {
     },
 
     /// dashboard - リアルタイム魔王軍ステータスダッシュボード (TUI)
-    Dashboard,
+    Dashboard {
+        /// セッション名（レイアウトから自動設定）
+        #[arg(long)]
+        session: Option<String>,
+
+        /// relay ディレクトリパス（レイアウトから自動設定）
+        #[arg(long)]
+        relay_dir: Option<String>,
+    },
 
     /// relay - MCP relay server (internal, spawned by Claude instances)
     #[command(hide = true)]
@@ -77,7 +85,7 @@ fn main() {
         Commands::Unsummon { name, force, all } => unsummon::execute(name, all, force, &config),
         Commands::Status { all } => status::execute(all, &config),
         Commands::Init { force } => init::execute(force, &config),
-        Commands::Dashboard => dashboard::execute(),
+        Commands::Dashboard { session, relay_dir } => dashboard::execute(session, relay_dir),
         Commands::Relay => match tokio::runtime::Runtime::new() {
             Ok(rt) => rt.block_on(relay::serve()),
             Err(e) => Err(anyhow::anyhow!("Failed to create tokio runtime: {}", e)),

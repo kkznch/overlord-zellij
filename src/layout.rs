@@ -307,7 +307,7 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_layout_contains_env_vars() {
+    fn test_generate_layout_contains_session_args() {
         let rituals_dir = PathBuf::from("/tmp/rituals");
         let mcp_dir = PathBuf::from("/tmp/mcp");
         let cwd = PathBuf::from("/tmp/project");
@@ -317,25 +317,25 @@ mod tests {
             "ovld-myproject", Path::new("/home/user/.config/ovld/sessions/ovld-myproject/relay"),
         ).unwrap();
 
-        // Dashboard pane should have OVLD_SESSION and OVLD_RELAY_DIR env vars
+        // Dashboard pane should have --session and --relay-dir args
         assert!(
-            layout.contains("OVLD_SESSION \"ovld-myproject\""),
-            "Layout should contain OVLD_SESSION env var"
+            layout.contains("\"--session\" \"ovld-myproject\""),
+            "Layout should contain --session arg"
         );
         assert!(
-            layout.contains("OVLD_RELAY_DIR \"/home/user/.config/ovld/sessions/ovld-myproject/relay\""),
-            "Layout should contain OVLD_RELAY_DIR env var"
+            layout.contains("\"--relay-dir\" \"/home/user/.config/ovld/sessions/ovld-myproject/relay\""),
+            "Layout should contain --relay-dir arg"
         );
 
-        // Env vars should be inside the dashboard pane (command tab), not in battlefield
+        // Args should be inside the dashboard pane (command tab), not in battlefield
         let command_tab_start = layout.find("tab name=\"command\"").unwrap();
         let battlefield_tab_start = layout.find("tab name=\"battlefield\"").unwrap();
         let command_section = &layout[command_tab_start..battlefield_tab_start];
-        assert!(command_section.contains("OVLD_SESSION"));
-        assert!(command_section.contains("OVLD_RELAY_DIR"));
+        assert!(command_section.contains("--session"));
+        assert!(command_section.contains("--relay-dir"));
 
         let battlefield_section = &layout[battlefield_tab_start..];
-        assert!(!battlefield_section.contains("OVLD_SESSION"));
+        assert!(!battlefield_section.contains("--session"));
     }
 
     #[test]

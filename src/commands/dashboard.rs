@@ -37,12 +37,14 @@ fn format_elapsed(secs: i64) -> String {
     }
 }
 
-pub fn execute() -> Result<()> {
-    let relay_dir = match env::var("OVLD_RELAY_DIR") {
-        Ok(dir) => PathBuf::from(dir),
-        Err(_) => config::config_dir()?.join("relay"),
+pub fn execute(session: Option<String>, relay_dir_arg: Option<String>) -> Result<()> {
+    let relay_dir = match relay_dir_arg.or_else(|| env::var("OVLD_RELAY_DIR").ok()) {
+        Some(dir) => PathBuf::from(dir),
+        None => config::config_dir()?.join("relay"),
     };
-    let session_name = env::var("OVLD_SESSION").unwrap_or_else(|_| "overlord".to_string());
+    let session_name = session
+        .or_else(|| env::var("OVLD_SESSION").ok())
+        .unwrap_or_else(|| "overlord".to_string());
     let store = MessageStore::new(relay_dir);
     let app_config = config::load_config();
 
