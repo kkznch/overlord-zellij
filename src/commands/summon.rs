@@ -27,7 +27,9 @@ pub fn execute(config: &AppConfig, debug: bool, sandbox: bool) -> Result<()> {
                 "Info:".cyan().bold(),
                 i18n::tf("summon.attaching", lang, &[("name", &existing_name)])
             );
-            return session.attach();
+            let result = session.attach();
+            super::cleanup_session_data(&existing_name);
+            return result;
         }
         // Session is dead — purge orphan and recreate
         let _ = unregister_session(&existing_name);
@@ -116,11 +118,7 @@ pub fn execute(config: &AppConfig, debug: bool, sandbox: bool) -> Result<()> {
     let layout_str = layout_path.to_str().context("layout path is not valid UTF-8")?;
     let result = session.start(layout_str);
 
-    // Clean up EXITED session if it still exists (best-effort)
-    if session.exists().unwrap_or(false) {
-        let _ = session.kill();
-        let _ = session.delete(true);
-    }
+    // Clean up session (kill + unregister + delete relay data)
     super::cleanup_session_data(&session_name);
 
     // Handle the result
