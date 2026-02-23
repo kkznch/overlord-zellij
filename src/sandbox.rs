@@ -65,6 +65,9 @@ pub fn generate_profile(cwd: &Path, config_dir: &Path) -> String {
 ;; Allow writes to Claude CLI cache (MCP logs, etc.)
 (allow file-write* (subpath "{home}/Library/Caches/claude-cli-nodejs"))
 
+;; Allow writes to Cargo home (registry, git cache, etc.)
+(allow file-write* (subpath "{home}/.cargo"))
+
 ;; Allow writes to npm logs
 (allow file-write* (subpath "{home}/.npm/_logs"))
 
@@ -162,6 +165,11 @@ mod tests {
     #[test]
     fn test_generate_profile_allows_dev() {
         assert!(test_profile().contains("(allow file-write* (subpath \"/dev\"))"));
+    }
+
+    #[test]
+    fn test_generate_profile_allows_cargo_home() {
+        assert!(test_profile().contains("/.cargo\""));
     }
 
     #[test]
