@@ -33,12 +33,23 @@ impl Default for DashboardConfig {
     }
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct SandboxConfig {
+    /// Additional paths to allow writes to (additive to built-in defaults).
+    /// Supports `~` for home directory expansion.
+    /// Example: ["~/.rustup", "/opt/my-tools"]
+    #[serde(default)]
+    pub extra_write_paths: Vec<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
     #[serde(default)]
     pub lang: Lang,
     #[serde(default)]
     pub dashboard: DashboardConfig,
+    #[serde(default)]
+    pub sandbox: SandboxConfig,
 }
 
 impl Default for AppConfig {
@@ -46,6 +57,7 @@ impl Default for AppConfig {
         Self {
             lang: Lang::En,
             dashboard: DashboardConfig::default(),
+            sandbox: SandboxConfig::default(),
         }
     }
 }

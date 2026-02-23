@@ -89,7 +89,7 @@ pub fn execute(config: &AppConfig, debug: bool, sandbox: bool) -> Result<()> {
     let _sandbox_profile = if sandbox {
         if cfg!(target_os = "macos") {
             let ovld_config_dir = config_dir()?;
-            let (temp, path) = crate::sandbox::create_temp_profile(&cwd, &ovld_config_dir)?;
+            let (temp, path) = crate::sandbox::create_temp_profile(&cwd, &ovld_config_dir, &config.sandbox.extra_write_paths)?;
             println!(
                 "{} Sandbox enabled: file writes restricted to project directory",
                 "Info:".cyan().bold()

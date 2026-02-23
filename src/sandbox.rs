@@ -33,7 +33,7 @@ fn resolve_git_repo_root(cwd: &Path) -> Option<PathBuf> {
 ///
 /// If `cwd` is inside a git worktree, the main repository's root directory
 /// is also permitted for writes (git needs access to shared objects/refs).
-pub fn generate_profile(cwd: &Path, config_dir: &Path) -> String {
+pub fn generate_profile(cwd: &Path, config_dir: &Path, extra_write_paths: &[String]) -> String {
     let home = env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
 
     let git_repo_root_rule = resolve_git_repo_root(cwd)
@@ -44,6 +44,22 @@ pub fn generate_profile(cwd: &Path, config_dir: &Path) -> String {
             )
         })
         .unwrap_or_default();
+
+    let extra_rules = if extra_write_paths.is_empty() {
+        String::new()
+    } else {
+        let rules: Vec<String> = extra_write_paths
+            .iter()
+            .map(|p| {
+                let expanded = p.replace('~', &home);
+                format!("(allow file-write* (subpath \"{}\"))", expanded)
+            })
+            .collect();
+        format!(
+            "\n;; Allow writes to user-configured paths (config.toml [sandbox])\n{}\n",
+            rules.join("\n")
+        )
+    };
 
     format!(
         r#"(version 1)
@@ -79,18 +95,19 @@ pub fn generate_profile(cwd: &Path, config_dir: &Path) -> String {
 
 ;; Allow writes to devices (null, tty, dtracehelper, ptmx, etc.)
 (allow file-write* (subpath "/dev"))
-"#,
+{extra_rules}"#,
         cwd = cwd.display(),
         git_repo_root_rule = git_repo_root_rule,
         config_dir = config_dir.display(),
         home = home,
+        extra_rules = extra_rules,
     )
 }
 
 /// Write the Seatbelt profile to a temporary file.
 /// Returns the temp file handle (keeps it alive) and its path.
-pub fn create_temp_profile(cwd: &Path, config_dir: &Path) -> Result<(NamedTempFile, PathBuf)> {
-    let content = generate_profile(cwd, config_dir);
+pub fn create_temp_profile(cwd: &Path, config_dir: &Path, extra_write_paths: &[String]) -> Result<(NamedTempFile, PathBuf)> {
+    let content = generate_profile(cwd, config_dir, extra_write_paths);
 
     let temp_file = NamedTempFile::with_suffix(".sb")
         .context("Failed to create temporary sandbox profile")?;
@@ -118,6 +135,7 @@ mod tests {
         generate_profile(
             &PathBuf::from("/home/user/project"),
             &PathBuf::from("/home/user/.config/ovld"),
+            &[],
         )
     }
 
@@ -192,6 +210,7 @@ mod tests {
         let (temp_file, path) = create_temp_profile(
             &PathBuf::from("/tmp/project"),
             &PathBuf::from("/tmp/ovld"),
+            &[],
         )
         .unwrap();
 
@@ -260,5 +279,30 @@ mod tests {
     fn test_generate_profile_no_git_repo_root_rule() {
         let profile = test_profile();
         assert!(!profile.contains("worktree support"));
+    }
+
+    #[test]
+    fn test_generate_profile_with_extra_paths() {
+        let profile = generate_profile(
+            &PathBuf::from("/home/user/project"),
+            &PathBuf::from("/home/user/.config/ovld"),
+            &["/opt/tools".to_string(), "/data/shared".to_string()],
+        );
+        assert!(profile.contains("(allow file-write* (subpath \"/opt/tools\"))"));
+        assert!(profile.contains("(allow file-write* (subpath \"/data/shared\"))"));
+        assert!(profile.contains("user-configured paths"));
+    }
+
+    #[test]
+    fn test_generate_profile_tilde_expansion() {
+        let home = env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+        let profile = generate_profile(
+            &PathBuf::from("/home/user/project"),
+            &PathBuf::from("/home/user/.config/ovld"),
+            &["~/.rustup".to_string()],
+        );
+        let expected = format!("(allow file-write* (subpath \"{}/.rustup\"))", home);
+        assert!(profile.contains(&expected));
+        assert!(!profile.contains("~/.rustup"));
     }
 }
