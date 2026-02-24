@@ -202,6 +202,17 @@ macOS では `ovld summon` 実行時、各 Claude エージェントを [Seatbel
 
 `--no-sandbox` でサンドボックスを無効化できる（`--dangerously-skip-permissions` は維持）。macOS 以外のプラットフォームでは警告を表示してサンドボックスを自動スキップする。
 
+### 書き込み許可パスの追加
+
+デフォルトの許可パスに加えて、`~/.config/ovld/config.toml` で追加の書き込み許可パスを設定できる：
+
+```toml
+[sandbox]
+extra_write_paths = ["~/.rustup", "/opt/my-tools"]
+```
+
+`~` はホームディレクトリに展開される。ここで指定したパスはビルトインの許可パスに追加される。
+
 ## 設定
 
 ### 言語設定

@@ -204,6 +204,17 @@ Agents are launched with `--dangerously-skip-permissions` to run fully autonomou
 
 Use `--no-sandbox` to disable sandboxing (agents will still be launched with `--dangerously-skip-permissions`). Non-macOS platforms skip sandboxing automatically with a warning.
 
+### Adding Extra Write Paths
+
+You can add extra write paths on top of the built-in defaults via `~/.config/ovld/config.toml`:
+
+```toml
+[sandbox]
+extra_write_paths = ["~/.rustup", "/opt/my-tools"]
+```
+
+`~` is expanded to the home directory. Paths listed here are additive to the built-in allowed paths.
+
 ## Configuration
 
 ### Language Setting
